@@ -1,19 +1,20 @@
 # Face Tracking Character Chatting App
 
-A real-time face tracking application built with p5.js and ml5.js that detects facial landmarks and tracks eye movements using machine learning.
+A real-time face tracking application built with p5.js and ml5.js that creates cartoon-style facial features tracking your real face movements.
 
 ## Features
 
-- Real-time face mesh detection with 468+ facial keypoints
-- Pupil tracking and visualization
-- Eye position detection with highlighted circles
-- Webcam integration for live video processing
+- **Exaggerated Eyes**: Large cartoon eyes that blink, track pupil movement, and rotate with face tilt
+- **Animated Lips**: Dynamic mouth rendering that changes shape when you talk
+- **Expressive Eyebrows**: Smooth eyebrow curves that follow facial movements
+- **Distance Scaling**: All features scale based on distance from camera
+- **Face Rotation**: Components rotate naturally when you tilt your head
 
 ## Technologies Used
 
 - **p5.js**: Creative coding library for canvas rendering
 - **ml5.js**: Machine learning library for face mesh detection
-- **MediaPipe Face Mesh**: Underlying ML model for facial landmark detection
+- **MediaPipe Face Mesh**: Underlying ML model for 468+ facial landmark detection
 
 ## Setup
 
@@ -27,46 +28,112 @@ cd face-tracking-character-chatting-app
 
 3. Allow camera permissions when prompted
 
-## How It Works
-
-The application uses ml5.js's faceMesh model to detect and track facial features in real-time:
-
-- **Green dots**: 468 facial keypoints mapping the entire face structure
-- **Cyan circles**: Highlighted areas around left and right pupils
-- **Pink dots**: Precise pupil center points (keypoints 468 and 473)
-
 ## File Structure
 
 ```
-├── index.html          # Main HTML file with p5.js and ml5.js setup
-├── sketch.js           # p5.js sketch with face tracking logic
-└── CLAUDE.md           # Project documentation
+├── index.html              # Main HTML with library imports
+├── config.js               # Configuration for all visual parameters
+├── sketch.js               # Main orchestration and face tracking
+├── components/
+│   ├── eyes.js            # Eye rendering with rotation and blinking
+│   ├── lips.js            # Mouth/lip animation
+│   └── eyebrows.js        # Eyebrow tracking
+└── CLAUDE.md              # This documentation
 ```
+
+## Architecture
+
+### config.js
+Central configuration file containing all adjustable parameters:
+- Eye exaggeration factors, aspect ratios, pupil sizes
+- Lip stroke weights, colors, open/closed thresholds
+- Eyebrow styles and debug settings
+- Distance scaling parameters
+
+### sketch.js
+Main orchestrator that:
+- Sets up webcam and face mesh detection
+- Calculates distance-based scaling
+- Renders all components in proper order
+- Provides debug visualization toggles
+
+### Components
+Each component (eyes, lips, eyebrows) is self-contained:
+- Receives `face` data and `distanceScale` parameter
+- Handles its own rendering logic
+- Uses centralized CONFIG for styling
 
 ## Code Overview
 
-The main functionality is implemented in `sketch.js`:
+**sketch.js:**
+- `preload()`: Initializes ml5 faceMesh model
+- `setup()`: Creates canvas and starts webcam
+- `draw()`: Main render loop - calculates scale and draws components
+- `calculateDistanceScale()`: Determines size based on face width
+- `drawFaceKeypoints()`: Debug visualization
+- `keyPressed()`: Keyboard shortcuts (i, k, d)
 
-- `preload()`: Initializes the faceMesh model
-- `setup()`: Creates canvas and starts webcam capture
-- `draw()`: Renders video feed and facial landmarks
-- `gotFaces()`: Callback function that receives face detection results
+**components/eyes.js:**
+- Calculates face rotation angle
+- Positions eyes side-by-side without gap/overlap
+- Handles blinking animation (0-100% open)
+- Clips pupils within eye boundaries
+- Rotates with face tilt
+
+**components/lips.js:**
+- Detects mouth open vs closed state
+- Renders smile curve when closed
+- Renders oval shape when open
+- Scales stroke weight with distance
+
+**components/eyebrows.js:**
+- Defines top/bottom eyebrow keypoint rows
+- Draws curve through centerline
+- Optional debug point visualization
+
+## Keyboard Controls
+
+- **`i`**: Toggle keypoint index numbers on/off
+- **`k`**: Toggle face mesh keypoints (green dots) on/off
+- **`d`**: Toggle eyebrow debug points (red circles) on/off
+
+## Configuration
+
+Edit `config.js` to customize visual appearance:
+
+```javascript
+CONFIG.eyes.exaggerationFactor = 1.5;  // Eye size multiplier
+CONFIG.eyes.pupilSizeRatio = 0.2;      // Pupil size
+CONFIG.lips.strokeWeight = 7;          // Lip line thickness
+CONFIG.eyebrows.strokeWeight = 7;      // Eyebrow line thickness
+```
+
+## Extending the Application
+
+The codebase is designed for easy extension:
+
+1. **Add new face components**: Create a new file in `components/`
+   - Follow the pattern: `function drawComponentName(face, distanceScale)`
+   - Add configuration to `config.js`
+   - Import in `index.html` and call in `sketch.js`
+
+2. **Modify existing components**: All magic numbers are in `config.js`
+   - Change colors, sizes, thresholds without touching component code
+   - Toggle debug features via keyboard or CONFIG
+
+3. **Add facial expressions**: Components already receive full face data
+   - Access all 468 keypoints via `face.keypoints[index]`
+   - Calculate custom ratios (smile, surprise, etc.)
+   - Implement state-based rendering
 
 ## Browser Compatibility
 
 Requires a modern browser with:
 - WebGL support
 - Webcam access (getUserMedia API)
-- JavaScript enabled
+- JavaScript ES6+ enabled
 
 Tested on: Chrome, Firefox, Edge
-
-## Future Enhancements
-
-- Character animation based on facial expressions
-- Chat interface integration
-- Expression recognition
-- Multiple face tracking
 
 ## License
 

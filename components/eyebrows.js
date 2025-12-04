@@ -1,6 +1,6 @@
 // Eyebrows component - handles eyebrow tracking and rendering
 
-function drawEyebrows(face) {
+function drawEyebrows(face, distanceScale = 1) {
   // Left eyebrow - top and bottom rows
   let leftBrowTop = [70, 63, 105, 66, 107];
   let leftBrowBottom = [46, 53, 52, 65, 55];
@@ -10,31 +10,33 @@ function drawEyebrows(face) {
   let rightBrowBottom = [276, 283, 282, 295, 285];
 
   // Draw left eyebrow
-  drawEyebrow(face, leftBrowTop, leftBrowBottom);
+  drawEyebrow(face, leftBrowTop, leftBrowBottom, distanceScale);
 
   // Draw right eyebrow
-  drawEyebrow(face, rightBrowTop, rightBrowBottom);
+  drawEyebrow(face, rightBrowTop, rightBrowBottom, distanceScale);
 }
 
-function drawEyebrow(face, topPoints, bottomPoints) {
-  // Mark the keypoints with RED circles to visualize which indices are used
-  for (let idx of topPoints) {
-    let point = face.keypoints[idx];
-    fill(255, 0, 0, 150); // Red with transparency
-    noStroke();
-    circle(point.x, point.y, 8);
-  }
-  for (let idx of bottomPoints) {
-    let point = face.keypoints[idx];
-    fill(255, 0, 0, 150); // Red with transparency
-    noStroke();
-    circle(point.x, point.y, 8);
+function drawEyebrow(face, topPoints, bottomPoints, distanceScale = 1) {
+  // Optional: Mark the keypoints with RED circles for debugging
+  if (CONFIG.eyebrows.showDebugPoints) {
+    for (let idx of topPoints) {
+      let point = face.keypoints[idx];
+      fill(255, 0, 0, 150);
+      noStroke();
+      circle(point.x, point.y, 8);
+    }
+    for (let idx of bottomPoints) {
+      let point = face.keypoints[idx];
+      fill(255, 0, 0, 150);
+      noStroke();
+      circle(point.x, point.y, 8);
+    }
   }
 
   // Draw the eyebrow curve through the center of top and bottom points
   noFill();
-  stroke(0, 0, 0); // Black eyebrow
-  strokeWeight(7);
+  stroke(...CONFIG.eyebrows.color);
+  strokeWeight(CONFIG.eyebrows.strokeWeight * distanceScale);
   strokeCap(ROUND);
 
   beginShape();

@@ -1,6 +1,6 @@
 // Lips component - handles lip tracking and rendering
 
-function drawLips(face) {
+function drawLips(face, distanceScale = 1) {
   // 입술 주요 포인트
   let leftCorner = face.keypoints[61];   // 왼쪽 끝점
   let rightCorner = face.keypoints[291]; // 오른쪽 끝점
@@ -24,14 +24,12 @@ function drawLips(face) {
   // 입 열림 비율 (너비 대비 높이)
   let openRatio = mouthOpenDistance / mouthWidth;
 
-  // 임계값: 입이 충분히 열렸는지 판단
-  let threshold = 0.05;
-
-  if (openRatio < threshold) {
+  // Check if mouth is open or closed
+  if (openRatio < CONFIG.lips.openThreshold) {
     // 입이 닫혔을 때: 중앙선 곡선 (미소)
     noFill();
-    stroke(255, 0, 0); // 빨간색
-    strokeWeight(7);
+    stroke(...CONFIG.lips.color);
+    strokeWeight(CONFIG.lips.strokeWeight * distanceScale);
     strokeCap(ROUND);
 
     beginShape();
@@ -50,8 +48,8 @@ function drawLips(face) {
   } else {
     // 입이 열렸을 때: 타원/원 (내부선 사용)
     noFill();
-    stroke(255, 0, 0); // 빨간색 테두리
-    strokeWeight(7);
+    stroke(...CONFIG.lips.color);
+    strokeWeight(CONFIG.lips.strokeWeight * distanceScale);
 
     // 윗입술 내부선과 아랫입술 내부선을 연결하여 입 안쪽 영역 생성
     beginShape();
