@@ -43,6 +43,7 @@ function draw() {
     // 각 컴포넌트 렌더링 (components 폴더에서 가져옴)
     drawEyes(face);      // eyes.js
     drawLips(face);      // lips.js
+    drawEyebrows(face);  // eyebrows.js
   }
 }
 

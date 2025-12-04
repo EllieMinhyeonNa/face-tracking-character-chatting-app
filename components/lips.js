@@ -25,13 +25,13 @@ function drawLips(face) {
   let openRatio = mouthOpenDistance / mouthWidth;
 
   // 임계값: 입이 충분히 열렸는지 판단
-  let threshold = 0.15;
+  let threshold = 0.05;
 
   if (openRatio < threshold) {
     // 입이 닫혔을 때: 중앙선 곡선 (미소)
     noFill();
-    stroke(160, 82, 45); // 갈색
-    strokeWeight(4);
+    stroke(255, 0, 0); // 빨간색
+    strokeWeight(7);
     strokeCap(ROUND);
 
     beginShape();
@@ -49,9 +49,9 @@ function drawLips(face) {
     endShape();
   } else {
     // 입이 열렸을 때: 타원/원 (내부선 사용)
-    fill(255, 100, 120); // 핑크/레드
-    stroke(160, 82, 45); // 갈색 테두리
-    strokeWeight(3);
+    noFill();
+    stroke(255, 0, 0); // 빨간색 테두리
+    strokeWeight(7);
 
     // 윗입술 내부선과 아랫입술 내부선을 연결하여 입 안쪽 영역 생성
     beginShape();
