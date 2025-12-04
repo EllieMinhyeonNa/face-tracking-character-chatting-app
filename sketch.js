@@ -36,7 +36,7 @@ function draw() {
 
     // 각 컴포넌트 렌더링 (거리 스케일 전달)
     drawEyes(face, distanceScale);           // eyes.js
-    drawLips(face, distanceScale);           // lips.js
+    drawLips(face, distanceScale, eyeScale); // lips.js - also receives eye scale
     drawEyebrows(face, distanceScale, eyeScale);  // eyebrows.js - also receives eye scale
   }
 }

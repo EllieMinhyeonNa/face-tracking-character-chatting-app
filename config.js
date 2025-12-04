@@ -13,9 +13,13 @@ const CONFIG = {
 
   // Lip settings
   lips: {
-    strokeWeight: 7,           // Base stroke thickness
+    exaggerationFactor: 1.0,
+    minScale: 0.5,
+    maxScale: 1.5,
+    strokeWeight: 8,           // Base stroke thickness
     openThreshold: 0.05,       // Threshold for mouth open/closed
     color: [255, 0, 0],        // Red color
+    verticalOffset: -10,
   },
 
   // Eyebrow settings
