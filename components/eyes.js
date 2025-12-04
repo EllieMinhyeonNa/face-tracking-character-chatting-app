@@ -20,6 +20,8 @@ const EYE_KEYPOINTS = {
 
 function drawEyes(face, distanceScale = 1) {
   if (face.keypoints.length > 473) {
+    // Apply min/max scale limits to distanceScale
+    let clampedScale = constrain(distanceScale, CONFIG.eyes.minScale, CONFIG.eyes.maxScale);
     // 왼쪽 눈 주요 포인트
     let leftPupil = face.keypoints[468];
     let leftEyeLeftCorner = face.keypoints[33];
@@ -56,12 +58,12 @@ function drawEyes(face, distanceScale = 1) {
       rightOriginalCenterX - leftOriginalCenterX
     );
 
-    // 과장된 눈 크기 계산 (거리 스케일 적용)
-    let leftExaggeratedWidth = leftRealWidth * 1.5 * distanceScale;
-    let leftExaggeratedHeight = leftExaggeratedWidth * 1.2;
+    // 과장된 눈 크기 계산 (제한된 거리 스케일 적용)
+    let leftExaggeratedWidth = leftRealWidth * CONFIG.eyes.exaggerationFactor * clampedScale;
+    let leftExaggeratedHeight = leftExaggeratedWidth * CONFIG.eyes.aspectRatio;
 
-    let rightExaggeratedWidth = rightRealWidth * 1.5 * distanceScale;
-    let rightExaggeratedHeight = rightExaggeratedWidth * 1.2;
+    let rightExaggeratedWidth = rightRealWidth * CONFIG.eyes.exaggerationFactor * clampedScale;
+    let rightExaggeratedHeight = rightExaggeratedWidth * CONFIG.eyes.aspectRatio;
 
     // 회전을 고려한 눈 사이 간격 계산
     // 두 눈의 평균 반지름
@@ -73,11 +75,11 @@ function drawEyes(face, distanceScale = 1) {
 
     // 왼쪽 눈: 얼굴 중심에서 왼쪽으로 정확히 조정된 거리만큼 떨어진 위치
     let leftNewCenterX = faceCenterX - horizontalSeparation;
-    let leftNewCenterY = leftOriginalCenterY;
+    let leftNewCenterY = leftOriginalCenterY + CONFIG.eyes.verticalOffset;
 
     // 오른쪽 눈: 얼굴 중심에서 오른쪽으로 정확히 조정된 거리만큼 떨어진 위치
     let rightNewCenterX = faceCenterX + horizontalSeparation;
-    let rightNewCenterY = rightOriginalCenterY;
+    let rightNewCenterY = rightOriginalCenterY + CONFIG.eyes.verticalOffset;
 
     // 왼쪽 눈 열림 비율
     let leftMaxHeight = leftRealWidth * 0.5;
@@ -101,7 +103,7 @@ function drawEyes(face, distanceScale = 1) {
     pop();
 
     // 왼쪽 동공
-    let leftPupilSize = leftExaggeratedHeight * 0.2;
+    let leftPupilSize = leftExaggeratedHeight * CONFIG.eyes.pupilSizeRatio;
 
     // 동공 위치 오프셋 계산 (원래 눈 중심에서 얼마나 떨어져 있는지)
     let leftPupilOffsetX = leftPupil.x - leftOriginalCenterX;
@@ -133,7 +135,7 @@ function drawEyes(face, distanceScale = 1) {
     pop();
 
     // 오른쪽 동공
-    let rightPupilSize = rightExaggeratedHeight * 0.2;
+    let rightPupilSize = rightExaggeratedHeight * CONFIG.eyes.pupilSizeRatio;
 
     // 동공 위치 오프셋 계산 (원래 눈 중심에서 얼마나 떨어져 있는지)
     let rightPupilOffsetX = rightPupil.x - rightOriginalCenterX;

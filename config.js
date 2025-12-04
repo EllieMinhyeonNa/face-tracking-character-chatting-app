@@ -3,9 +3,12 @@
 const CONFIG = {
   // Eye settings
   eyes: {
-    exaggerationFactor: 1.5,  // How much bigger than real eyes
+    exaggerationFactor: 1.7,  // How much bigger than real eyes
     aspectRatio: 1.2,          // Height to width ratio when fully open
     pupilSizeRatio: 0.2,       // Pupil size relative to eye height
+    minScale: 1.0,             // Minimum scale when far from camera (0.5 = 50% of normal)
+    maxScale: 1.6,             // Maximum scale when close to camera (2.0 = 200% of normal)
+    verticalOffset: 30,         // Vertical position adjustment in pixels (positive = down, negative = up)
   },
 
   // Lip settings
@@ -17,9 +20,13 @@ const CONFIG = {
 
   // Eyebrow settings
   eyebrows: {
-    strokeWeight: 7,           // Base stroke thickness
+    strokeWeight: 8,           // Base stroke thickness
+    exaggerationFactor: 1.0,   // How much to exaggerate eyebrow movements/size
     color: [0, 0, 0],          // Black color
     showDebugPoints: false,    // Toggle red debug circles
+    minScale: 0.5,             // Minimum scale when far from camera
+    maxScale: 1.5,             // Maximum scale when close to camera
+    verticalOffset: 25,
   },
 
   // Distance scale settings

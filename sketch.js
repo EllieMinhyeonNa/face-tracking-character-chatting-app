@@ -26,15 +26,18 @@ function draw() {
     // Calculate distance-based scale
     let distanceScale = calculateDistanceScale(face);
 
+    // Calculate eye scale (clamped to eye limits)
+    let eyeScale = constrain(distanceScale, CONFIG.eyes.minScale, CONFIG.eyes.maxScale);
+
     // Draw debug visualizations
     if (CONFIG.debug.showKeypoints) {
       drawFaceKeypoints(face);
     }
 
     // 각 컴포넌트 렌더링 (거리 스케일 전달)
-    drawEyes(face, distanceScale);      // eyes.js
-    drawLips(face, distanceScale);      // lips.js
-    drawEyebrows(face, distanceScale);  // eyebrows.js
+    drawEyes(face, distanceScale);           // eyes.js
+    drawLips(face, distanceScale);           // lips.js
+    drawEyebrows(face, distanceScale, eyeScale);  // eyebrows.js - also receives eye scale
   }
 }
 
