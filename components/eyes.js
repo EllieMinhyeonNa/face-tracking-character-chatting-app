@@ -102,7 +102,7 @@ function drawEyes(face, distanceScale = 1) {
     ellipse(0, 0, leftExaggeratedWidth, leftAnimatedHeight);
     pop();
 
-    // 왼쪽 동공
+    // 왼쪽 동공 - 크기는 exaggeratedHeight 기준 (blinking에 영향받지 않음)
     let leftPupilSize = leftExaggeratedHeight * CONFIG.eyes.pupilSizeRatio;
 
     // 동공 위치 오프셋 계산 (원래 눈 중심에서 얼마나 떨어져 있는지)
@@ -121,6 +121,7 @@ function drawEyes(face, distanceScale = 1) {
     drawingContext.ellipse(0, 0, leftExaggeratedWidth / 2, leftAnimatedHeight / 2, 0, 0, TWO_PI);
     drawingContext.clip();
     fill(0, 0, 0);
+    noStroke(); // Ensure no stroke on pupil
     circle(leftPupilOffsetX, leftPupilOffsetY, leftPupilSize);
     drawingContext.restore();
     pop();
@@ -153,6 +154,7 @@ function drawEyes(face, distanceScale = 1) {
     drawingContext.ellipse(0, 0, rightExaggeratedWidth / 2, rightAnimatedHeight / 2, 0, 0, TWO_PI);
     drawingContext.clip();
     fill(0, 0, 0);
+    noStroke(); // Ensure no stroke on pupil
     circle(rightPupilOffsetX, rightPupilOffsetY, rightPupilSize);
     drawingContext.restore();
     pop();

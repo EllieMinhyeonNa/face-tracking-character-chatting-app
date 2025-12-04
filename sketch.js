@@ -18,7 +18,12 @@ function setup() {
 }
 
 function draw() {
-  image(video, 0, 0, width, height);
+  // Draw background or video feed
+  if (CONFIG.canvas.showVideo) {
+    image(video, 0, 0, width, height);
+  } else {
+    background(...CONFIG.canvas.backgroundColor);
+  }
 
   for (let i = 0; i < faces.length; i++) {
     let face = faces[i];
@@ -29,12 +34,12 @@ function draw() {
     // Calculate eye scale (clamped to eye limits)
     let eyeScale = constrain(distanceScale, CONFIG.eyes.minScale, CONFIG.eyes.maxScale);
 
-    // Draw debug visualizations
+    // Draw debug keypoints FIRST (so components are drawn on top)
     if (CONFIG.debug.showKeypoints) {
       drawFaceKeypoints(face);
     }
 
-    // 각 컴포넌트 렌더링 (거리 스케일 전달)
+    // 각 컴포넌트 렌더링 (거리 스케일 전달) - drawn AFTER keypoints
     drawEyes(face, distanceScale);           // eyes.js
     drawLips(face, distanceScale, eyeScale); // lips.js - also receives eye scale
     drawEyebrows(face, distanceScale, eyeScale);  // eyebrows.js - also receives eye scale
@@ -83,5 +88,13 @@ function keyPressed() {
   if (key === 'd' || key === 'D') {
     CONFIG.eyebrows.showDebugPoints = !CONFIG.eyebrows.showDebugPoints;
     console.log('Eyebrow debug points:', CONFIG.eyebrows.showDebugPoints ? 'ON' : 'OFF');
+  }
+  if (key === 'v' || key === 'V') {
+    CONFIG.canvas.showVideo = !CONFIG.canvas.showVideo;
+    console.log('Video display:', CONFIG.canvas.showVideo ? 'ON' : 'OFF');
+  }
+  if (key === 'h' || key === 'H') {
+    CONFIG.debug.showKeypoints = !CONFIG.debug.showKeypoints;
+    console.log('Keypoints display:', CONFIG.debug.showKeypoints ? 'ON' : 'OFF');
   }
 }

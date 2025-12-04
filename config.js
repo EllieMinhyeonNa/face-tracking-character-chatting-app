@@ -18,7 +18,7 @@ const CONFIG = {
     maxScale: 1.5,
     strokeWeight: 8,           // Base stroke thickness
     openThreshold: 0.05,       // Threshold for mouth open/closed
-    color: [255, 0, 0],        // Red color
+    color: [210, 45, 45],        // Red color
     verticalOffset: -10,
   },
 
@@ -42,5 +42,11 @@ const CONFIG = {
   debug: {
     showKeypoints: true,       // Show green face mesh points
     showIndices: false,        // Show keypoint index numbers
+  },
+
+  // Canvas settings
+  canvas: {
+    backgroundColor: [255, 74, 74],  // Background color (RGB)
+    showVideo: true,                 // Show webcam video feed
   }
 };
