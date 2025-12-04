@@ -1,7 +1,10 @@
+// Main sketch file - orchestrates face tracking and rendering
+
 let faceMesh;
 let video;
 let faces = [];
 let options = { maxFaces: 1, refineLandmarks: true, flipHorizontal: false };
+let showIndices = false; // Toggle to show keypoint indices
 
 function preload() {
   faceMesh = ml5.faceMesh(options);
@@ -17,54 +20,40 @@ function setup() {
 
 function draw() {
   image(video, 0, 0, width, height);
-  
+
   for (let i = 0; i < faces.length; i++) {
     let face = faces[i];
-    
+
     // 일반 얼굴 keypoints 그리기
     for (let j = 0; j < face.keypoints.length; j++) {
       let keypoint = face.keypoints[j];
       fill(0, 255, 0);
       noStroke();
       circle(keypoint.x, keypoint.y, 5);
-    }
-    
-    // 왼쪽 눈 원 그리기
-    if (face.keypoints.length > 468) {
-      let leftPupil = face.keypoints[468];
-      noFill();
-      stroke(0, 255, 255);
-      strokeWeight(3);
-      circle(leftPupil.x, leftPupil.y, 60);
+
+      // 인덱스 번호 표시 (토글 가능)
+      if (showIndices) {
+        fill(255, 255, 0);
+        textSize(10);
+        textAlign(CENTER, CENTER);
+        text(j, keypoint.x, keypoint.y - 10);
+      }
     }
 
-    // 오른쪽 눈 원 그리기
-    if (face.keypoints.length > 473) {
-      let rightPupil = face.keypoints[473];
-      noFill();
-      stroke(0, 255, 255);
-      strokeWeight(3);
-      circle(rightPupil.x, rightPupil.y, 60);
-    }
-
-    // 왼쪽 동공 중심점 (인덱스 468)
-    if (face.keypoints.length > 468) {
-      let leftPupil = face.keypoints[468];
-      fill(255, 0, 255); // 핑크색
-      noStroke();
-      circle(leftPupil.x, leftPupil.y, 12);
-    }
-
-    // 오른쪽 동공 중심점 (인덱스 473)
-    if (face.keypoints.length > 473) {
-      let rightPupil = face.keypoints[473];
-      fill(255, 0, 255); // 핑크색
-      noStroke();
-      circle(rightPupil.x, rightPupil.y, 12);
-    }
+    // 각 컴포넌트 렌더링 (components 폴더에서 가져옴)
+    drawEyes(face);      // eyes.js
+    drawLips(face);      // lips.js
   }
 }
 
 function gotFaces(results) {
   faces = results;
+}
+
+// 키보드 'i' 키를 눌러 인덱스 표시 토글
+function keyPressed() {
+  if (key === 'i' || key === 'I') {
+    showIndices = !showIndices;
+    console.log('Index display:', showIndices ? 'ON' : 'OFF');
+  }
 }
