@@ -31,6 +31,9 @@ const CONFIG = {
     minScale: 0.5,             // Minimum scale when far from camera
     maxScale: 1.5,             // Maximum scale when close to camera
     verticalOffset: 25,
+    showDynamicsDebug: true,   // Show on-screen debug info for eyebrow dynamics
+    raiseHeightMultiplier: 1, // How much to raise eyebrows when raised
+    raiseArchMultiplier: 1.0,  // How much to arch eyebrows when raised
   },
 
   // Distance scale settings

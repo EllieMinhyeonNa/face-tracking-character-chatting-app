@@ -52,8 +52,8 @@ function gotFaces(results) {
 
 // Helper function: Calculate distance scale based on face width
 function calculateDistanceScale(face) {
-  let leftFaceEdge = face.keypoints[234];
-  let rightFaceEdge = face.keypoints[454];
+  let leftFaceEdge = face.keypoints[KEYPOINTS.LEFT_FACE_EDGE];
+  let rightFaceEdge = face.keypoints[KEYPOINTS.RIGHT_FACE_EDGE];
   let faceWidth = dist(leftFaceEdge.x, leftFaceEdge.y, rightFaceEdge.x, rightFaceEdge.y);
   return faceWidth / CONFIG.distance.baseFaceWidth;
 }
@@ -94,7 +94,12 @@ function keyPressed() {
     console.log('Video display:', CONFIG.canvas.showVideo ? 'ON' : 'OFF');
   }
   if (key === 'h' || key === 'H') {
-    CONFIG.debug.showKeypoints = !CONFIG.debug.showKeypoints;
-    console.log('Keypoints display:', CONFIG.debug.showKeypoints ? 'ON' : 'OFF');
+    // Show help menu
+    console.log('=== KEYBOARD SHORTCUTS ===');
+    console.log('I: Toggle keypoint index display');
+    console.log('K: Toggle keypoints display');
+    console.log('D: Toggle eyebrow debug points');
+    console.log('V: Toggle video feed');
+    console.log('H: Show this help menu');
   }
 }

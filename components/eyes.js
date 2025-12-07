@@ -1,40 +1,23 @@
 // Eyes component - handles eye tracking and rendering
 
-// Keypoint indices for eyes
-const EYE_KEYPOINTS = {
-  left: {
-    pupil: 468,
-    leftCorner: 33,
-    rightCorner: 133,
-    top: 159,
-    bottom: 145
-  },
-  right: {
-    pupil: 473,
-    leftCorner: 263,
-    rightCorner: 362,
-    top: 386,
-    bottom: 374
-  }
-};
-
 function drawEyes(face, distanceScale = 1) {
-  if (face.keypoints.length > 473) {
+  if (face.keypoints.length > KEYPOINTS.RIGHT_PUPIL) {
     // Apply min/max scale limits to distanceScale
     let clampedScale = constrain(distanceScale, CONFIG.eyes.minScale, CONFIG.eyes.maxScale);
-    // 왼쪽 눈 주요 포인트
-    let leftPupil = face.keypoints[468];
-    let leftEyeLeftCorner = face.keypoints[33];
-    let leftEyeRightCorner = face.keypoints[133];
-    let leftEyeTop = face.keypoints[159];
-    let leftEyeBottom = face.keypoints[145];
 
-    // 오른쪽 눈 주요 포인트
-    let rightPupil = face.keypoints[473];
-    let rightEyeLeftCorner = face.keypoints[263];
-    let rightEyeRightCorner = face.keypoints[362];
-    let rightEyeTop = face.keypoints[386];
-    let rightEyeBottom = face.keypoints[374];
+    // Left eye keypoints
+    let leftPupil = face.keypoints[KEYPOINTS.LEFT_PUPIL];
+    let leftEyeLeftCorner = face.keypoints[KEYPOINTS.LEFT_EYE_LEFT_CORNER];
+    let leftEyeRightCorner = face.keypoints[KEYPOINTS.LEFT_EYE_RIGHT_CORNER];
+    let leftEyeTop = face.keypoints[KEYPOINTS.LEFT_EYE_TOP];
+    let leftEyeBottom = face.keypoints[KEYPOINTS.LEFT_EYE_BOTTOM];
+
+    // Right eye keypoints
+    let rightPupil = face.keypoints[KEYPOINTS.RIGHT_PUPIL];
+    let rightEyeLeftCorner = face.keypoints[KEYPOINTS.RIGHT_EYE_LEFT_CORNER];
+    let rightEyeRightCorner = face.keypoints[KEYPOINTS.RIGHT_EYE_RIGHT_CORNER];
+    let rightEyeTop = face.keypoints[KEYPOINTS.RIGHT_EYE_TOP];
+    let rightEyeBottom = face.keypoints[KEYPOINTS.RIGHT_EYE_BOTTOM];
 
     // 왼쪽 눈 원래 중심과 크기
     let leftOriginalCenterX = (leftEyeLeftCorner.x + leftEyeRightCorner.x) / 2;

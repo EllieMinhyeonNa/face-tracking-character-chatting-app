@@ -9,16 +9,20 @@ A real-time face tracking application built with p5.js and ml5.js that creates c
   - Side-by-side positioning with no gaps or overlap
   - Vertical offset customization
 - **Animated Lips**: Dynamic mouth rendering that changes shape when you talk
-  - Smile curve when mouth is closed
-  - Oval shape when mouth is open
+  - Smooth curve when mouth is closed
+  - Smooth oval shape when mouth is open
   - Position exaggeration based on eye scale
-- **Expressive Eyebrows**: Smooth eyebrow curves that follow facial movements
+- **Dynamic Eyebrows**: Expressive eyebrows with automatic raise detection
+  - **NEW**: Detects when you raise eyebrows and exaggerates the movement
+  - Rotation-invariant detection (works even when you tilt your head)
+  - Height multiplier creates cartoon-like expressions
   - Scale proportionally with eye size changes
-  - Configurable vertical positioning
+  - Debug visualization shows detection metrics
 - **Distance Scaling**: All features scale based on distance from camera
   - Configurable min/max scale limits per component
   - Eyes, lips, and eyebrows respond independently
 - **Face Rotation**: Components rotate naturally when you tilt your head
+- **Clean Architecture**: Centralized keypoint constants for maintainability
 - **Debug Modes**: Multiple visualization options for development
 
 ## Technologies Used
@@ -45,11 +49,14 @@ cd face-tracking-character-chatting-app
 ├── index.html              # Main HTML with library imports
 ├── config.js               # Configuration for all visual parameters
 ├── sketch.js               # Main orchestration and face tracking
+├── constants/
+│   └── keypoints.js       # Centralized MediaPipe keypoint indices
 ├── components/
 │   ├── eyes.js            # Eye rendering with rotation and blinking
-│   ├── lips.js            # Mouth/lip animation
-│   └── eyebrows.js        # Eyebrow tracking
-└── CLAUDE.md              # This documentation
+│   ├── lips.js            # Mouth/lip animation with smooth curves
+│   └── eyebrows.js        # Eyebrow tracking with raise detection
+├── CLAUDE.md              # This documentation
+└── REFACTORING.md         # Recent codebase improvements
 ```
 
 ## Architecture
@@ -57,39 +64,48 @@ cd face-tracking-character-chatting-app
 The application follows a component-based architecture with centralized configuration:
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                      index.html                         │
-│  Loads: p5.js → ml5.js → config.js → components → sketch│
-└─────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│                         index.html                             │
+│  Loads: p5.js → ml5.js → constants → config → components → sketch│
+└────────────────────────────────────────────────────────────────┘
                             ↓
-┌─────────────────────────────────────────────────────────┐
-│                      config.js                          │
-│  • Eyes: exaggeration, scaling, positioning             │
-│  • Lips: stroke weight, colors, thresholds              │
-│  • Eyebrows: styling, debug settings                    │
-│  • Canvas: background color, video toggle               │
-│  • Debug: keypoints, indices visibility                 │
-└─────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│                    constants/keypoints.js                      │
+│  • KEYPOINTS.LEFT_PUPIL, RIGHT_PUPIL                           │
+│  • KEYPOINTS.EYEBROW_LEFT_TOP_ROW, etc.                        │
+│  • KEYPOINTS.LIP_LEFT_CORNER, LIP_UPPER_OUTER, etc.            │
+│  • Replaces magic numbers with meaningful names                │
+└────────────────────────────────────────────────────────────────┘
                             ↓
-┌─────────────────────────────────────────────────────────┐
-│                      sketch.js                          │
-│  Main Loop:                                             │
-│  1. Capture video frame                                 │
-│  2. ml5.faceMesh detects face → gotFaces()              │
-│  3. Calculate distanceScale from face width             │
-│  4. Calculate eyeScale (clamped distanceScale)          │
-│  5. Render: eyes → lips → eyebrows                      │
-│  6. Handle keyboard input (H, I, K, D, V)               │
-└─────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│                         config.js                              │
+│  • Eyes: exaggeration, scaling, positioning                    │
+│  • Lips: stroke weight, colors, thresholds                     │
+│  • Eyebrows: styling, raise detection, debug settings          │
+│  • Canvas: background color, video toggle                      │
+│  • Debug: keypoints, indices, dynamics visibility              │
+└────────────────────────────────────────────────────────────────┘
                             ↓
-┌──────────────────┬──────────────────┬───────────────────┐
-│  eyes.js         │  lips.js         │  eyebrows.js      │
-│ ────────────     │ ────────────     │ ────────────      │
-│ • Rotation calc  │ • Open/closed    │ • Top/bottom rows │
-│ • Side-by-side   │ • Smile curve    │ • Center curve    │
-│ • Blinking       │ • Oval shape     │ • Eye scaling     │
-│ • Pupil clipping │ • Exaggeration   │ • Debug points    │
-└──────────────────┴──────────────────┴───────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│                         sketch.js                              │
+│  Main Loop:                                                    │
+│  1. Capture video frame                                        │
+│  2. ml5.faceMesh detects face → gotFaces()                     │
+│  3. Calculate distanceScale from face width                    │
+│  4. Calculate eyeScale (clamped distanceScale)                 │
+│  5. Render: eyes → lips → eyebrows (with raise detection)     │
+│  6. Handle keyboard input (H, I, K, D, V)                      │
+└────────────────────────────────────────────────────────────────┘
+                            ↓
+┌──────────────────┬──────────────────┬────────────────────────┐
+│  eyes.js         │  lips.js         │  eyebrows.js           │
+│ ────────────     │ ────────────     │ ────────────           │
+│ • Rotation calc  │ • Open/closed    │ • Raise detection      │
+│ • Side-by-side   │ • Smooth curves  │ • Height exaggeration  │
+│ • Blinking       │ • Oval/curve     │ • Rotation-invariant   │
+│ • Pupil clipping │ • Exaggeration   │ • Debug visualization  │
+│ • Uses KEYPOINTS │ • Uses KEYPOINTS │ • Uses KEYPOINTS       │
+└──────────────────┴──────────────────┴────────────────────────┘
 ```
 
 ### config.js
@@ -165,17 +181,22 @@ function drawComponent(face, distanceScale, eyeScale) {
 - Scales stroke weight with distance
 
 **components/eyebrows.js:**
-- Defines top/bottom eyebrow keypoint rows
+- **NEW**: Detects eyebrow raising via brow-to-eye distance
+- Rotation-invariant detection (resistant to head tilt)
+- Applies height exaggeration when eyebrows are raised
+- Defines top/bottom eyebrow keypoint rows (using KEYPOINTS constants)
 - Draws curve through centerline
-- Optional debug point visualization
+- Optional debug visualization showing distance ratio and raise amount
 
 ## Keyboard Controls
 
-- **`H`**: Toggle face mesh keypoints (green dots) visibility
+- **`H`**: Show help menu (displays all keyboard shortcuts in console)
 - **`I`**: Toggle keypoint index numbers on/off
-- **`K`**: Toggle face mesh keypoints (green dots) - same as H
+- **`K`**: Toggle face mesh keypoints (green dots) visibility
 - **`D`**: Toggle eyebrow debug points (red circles) on/off
 - **`V`**: Toggle between video feed and solid background color
+
+**Note**: Eyebrow dynamics debug (distance ratio, raise amount, height multiplier) is controlled by `CONFIG.eyebrows.showDynamicsDebug` in config.js
 
 ## Configuration
 
