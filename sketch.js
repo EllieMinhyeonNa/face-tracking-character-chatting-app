@@ -25,6 +25,9 @@ function draw() {
     background(...CONFIG.canvas.backgroundColor);
   }
 
+  // === EVENT DETECTION & EFFECTS ===
+  let isSurprised = false;
+
   for (let i = 0; i < faces.length; i++) {
     let face = faces[i];
 
@@ -33,6 +36,30 @@ function draw() {
 
     // Calculate eye scale (clamped to eye limits)
     let eyeScale = constrain(distanceScale, CONFIG.eyes.minScale, CONFIG.eyes.maxScale);
+
+    // Get expression measurements from components
+    // Note: These are set as global variables by the components
+    let browRaiseAmount = window.browRaiseAmount || 0;
+    let mouthOpenRatio = window.mouthOpenRatio || 0;
+
+    // Detect "surprised" event
+    isSurprised = detectSurprised(browRaiseAmount, mouthOpenRatio);
+
+    // Activate/deactivate effects based on events
+    if (isSurprised) {
+      activateSpeedLines();
+    } else {
+      deactivateSpeedLines();
+    }
+
+    // Calculate face center for effects
+    let noseBridge = face.keypoints[KEYPOINTS.NOSE_BRIDGE];
+    let faceCenterX = noseBridge.x;
+    let faceCenterY = noseBridge.y;
+
+    // Draw speed lines BEFORE character (background effect)
+    // Lines follow the face center position
+    drawSpeedLines(browRaiseAmount, faceCenterX, faceCenterY);
 
     // Draw debug keypoints FIRST (so components are drawn on top)
     if (CONFIG.debug.showKeypoints) {

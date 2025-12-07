@@ -59,6 +59,9 @@ function drawEyebrows(face, distanceScale = 1.0, eyeScale = 1) {
   // Typical values: neutral ~0.41, raised ~0.48
   let browRaiseAmount = constrain(map(distanceRatio, 0.41, 0.48, 0.0, 0.8), 0, 1);
 
+  // Expose to global scope for event detection
+  window.browRaiseAmount = browRaiseAmount;
+
   // DEBUG: Show distance ratio and raise amount to calibrate thresholds
   if (CONFIG.eyebrows.showDynamicsDebug) {
     push();
@@ -67,6 +70,7 @@ function drawEyebrows(face, distanceScale = 1.0, eyeScale = 1) {
     textSize(14);
     textAlign(LEFT, TOP);
     text(`Brow-to-Eye Distance Ratio: ${distanceRatio.toFixed(3)}`, 10, 20);
+    text('mouthOpenRatio: ' + window.mouthOpenRatio.toFixed(3), 10, 80);
     text(`Brow Raise Amount: ${(browRaiseAmount * 100).toFixed(1)}%`, 10, 40);
     text(`Height Multiplier: ${(1.0 + browRaiseAmount * 0.8).toFixed(2)}x`, 10, 60);
     pop();

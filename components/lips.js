@@ -28,6 +28,9 @@ function drawLips(face, distanceScale = 1, eyeScale = 1) {
   // 입 열림 비율 (너비 대비 높이)
   let openRatio = mouthOpenDistance / mouthWidth;
 
+  // Expose to global scope for event detection
+  window.mouthOpenRatio = openRatio;
+
   // === MEASURE MOUTH CURVATURE (for emotion detection) ===
   // Compare corners vs center to detect smile/frown
   let avgCornerY = (leftCorner.y + rightCorner.y) / 2;
