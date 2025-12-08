@@ -227,59 +227,104 @@ function isConnected() {
 }
 
 /**
- * Show room code on screen
+ * Show room code on screen (small toggle button in top corner)
  */
 function showRoomCode(code) {
-  let overlay = document.getElementById('room-code-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'room-code-overlay';
-    overlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0,0,0,0.9);
-      color: white;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-      font-family: monospace;
-    `;
-    document.body.appendChild(overlay);
+  // Remove old full-screen overlay if it exists
+  let oldOverlay = document.getElementById('room-code-overlay');
+  if (oldOverlay) {
+    oldOverlay.remove();
   }
 
-  const shortCode = code.slice(0, 8);
-  const localUrl = `${window.location.origin}${window.location.pathname}?room=${code}`;
-  const phoneUrl = `https://192.168.0.229:8080/?room=${code}`;
+  // Create small toggle button
+  let toggleBtn = document.getElementById('room-code-toggle');
+  if (!toggleBtn) {
+    toggleBtn = document.createElement('button');
+    toggleBtn.id = 'room-code-toggle';
+    toggleBtn.style.cssText = `
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      background: rgba(255, 255, 255, 0.95);
+      color: #333;
+      border: none;
+      padding: 12px 20px;
+      margin: 16px 16px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      z-index: 1001;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      transition: all 0.2s;
+    `;
+    toggleBtn.textContent = '📋 Show Room Code';
+    document.body.appendChild(toggleBtn);
 
-  overlay.innerHTML = `
-    <h1 style="font-size: 48px; margin-bottom: 20px;">Waiting for partner...</h1>
-    <p style="font-size: 24px; margin-bottom: 40px;">Share this code:</p>
-    <div style="background: #333; padding: 30px; border-radius: 10px; font-size: 72px; letter-spacing: 10px;">
-      ${shortCode}
-    </div>
-    <p style="font-size: 18px; margin-top: 40px; color: #888;">On this laptop:</p>
-    <div style="background: #222; padding: 15px; border-radius: 5px; font-size: 14px; max-width: 80%; word-break: break-all; margin-bottom: 20px;">
-      ${localUrl}
-    </div>
-    <p style="font-size: 18px; color: #888;">On phone/other device:</p>
-    <div style="background: #222; padding: 15px; border-radius: 5px; font-size: 14px; max-width: 80%; word-break: break-all;">
-      ${phoneUrl}
-    </div>
-  `;
-  overlay.style.display = 'flex';
+    // Create popup panel (hidden by default)
+    let popup = document.createElement('div');
+    popup.id = 'room-code-popup';
+    popup.style.cssText = `
+      position: fixed;
+      top: 70px;
+      right: 16px;
+      background: rgba(0, 0, 0, 0.95);
+      color: white;
+      padding: 20px;
+      border-radius: 16px;
+      font-family: monospace;
+      font-size: 12px;
+      z-index: 1000;
+      display: none;
+      max-width: 350px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    `;
+
+    const shortCode = code.slice(0, 8);
+    const localUrl = `${window.location.origin}${window.location.pathname}?room=${code}`;
+    const phoneUrl = `https://192.168.0.229:8080/?room=${code}`;
+
+    popup.innerHTML = `
+      <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Waiting for partner...</div>
+      <div style="font-size: 11px; color: #999; margin-bottom: 8px;">Share this code:</div>
+      <div style="background: #333; padding: 15px; border-radius: 8px; font-size: 28px; letter-spacing: 4px; text-align: center; margin-bottom: 12px;">
+        ${shortCode}
+      </div>
+      <div style="font-size: 10px; color: #999; margin-bottom: 4px;">On this laptop:</div>
+      <div style="background: #222; padding: 8px; border-radius: 6px; font-size: 10px; word-break: break-all; margin-bottom: 8px;">
+        ${localUrl}
+      </div>
+      <div style="font-size: 10px; color: #999; margin-bottom: 4px;">On phone/other device:</div>
+      <div style="background: #222; padding: 8px; border-radius: 6px; font-size: 10px; word-break: break-all;">
+        ${phoneUrl}
+      </div>
+    `;
+    document.body.appendChild(popup);
+
+    // Toggle popup on button click
+    let isOpen = false;
+    toggleBtn.addEventListener('click', () => {
+      isOpen = !isOpen;
+      popup.style.display = isOpen ? 'block' : 'none';
+      toggleBtn.textContent = isOpen ? '✕ Hide' : '📋 Show Room Code';
+      toggleBtn.style.background = isOpen ? 'rgba(255, 74, 74, 0.95)' : 'rgba(255, 255, 255, 0.95)';
+      toggleBtn.style.color = isOpen ? 'white' : '#333';
+    });
+  }
 }
 
 /**
- * Hide room code overlay
+ * Hide room code button (when connected)
  */
 function hideRoomCode() {
-  const overlay = document.getElementById('room-code-overlay');
-  if (overlay) {
-    overlay.style.display = 'none';
+  const toggleBtn = document.getElementById('room-code-toggle');
+  const popup = document.getElementById('room-code-popup');
+
+  if (toggleBtn) {
+    toggleBtn.remove();
+  }
+  if (popup) {
+    popup.remove();
   }
 }

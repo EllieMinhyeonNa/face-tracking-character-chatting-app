@@ -1,17 +1,32 @@
 // Main sketch file - orchestrates face tracking and rendering
-// Now with multi-user support!
+// Now with per-participant canvas support for effects!
 
 let faceMesh;
 let video;
 let faces = [];
 let options = { maxFaces: 1, refineLandmarks: true, flipHorizontal: false };
 
+// Main canvas for character rendering (eyes, lips, eyebrows)
+let mainCanvas;
+
+// Separate canvases for effects (speed lines) - one per participant
+let effectsCanvas1 = null;
+let effectsCanvas2 = null;
+
 function preload() {
   faceMesh = ml5.faceMesh(options);
 }
 
 function setup() {
-  createCanvas(640, 480);
+  // Create main canvas for character rendering
+  mainCanvas = createCanvas(windowWidth, windowHeight);
+  mainCanvas.parent('app-container');
+  mainCanvas.style('position', 'absolute');
+  mainCanvas.style('top', '0');
+  mainCanvas.style('left', '0');
+  mainCanvas.style('pointer-events', 'none');
+  mainCanvas.style('z-index', '1');
+
   video = createCapture(VIDEO);
   video.size(640, 480);
   video.hide();
@@ -19,16 +34,77 @@ function setup() {
 
   // Initialize networking
   initNetworking();
+
+  // Create effects canvases
+  setupEffectsCanvases();
+}
+
+/**
+ * Create separate canvas for each participant's effects
+ */
+function setupEffectsCanvases() {
+  let box1 = document.getElementById('participant-1');
+  let box2 = document.getElementById('participant-2');
+
+  if (box1 && !effectsCanvas1) {
+    // CRITICAL: Ensure parent has position relative so absolute canvas stays inside
+    box1.style.position = 'relative';
+
+    let rect = box1.getBoundingClientRect();
+    effectsCanvas1 = createGraphics(rect.width, rect.height);
+
+    let canvasElement1 = effectsCanvas1.canvas;
+    canvasElement1.style.position = 'absolute';
+    canvasElement1.style.top = '0';
+    canvasElement1.style.left = '0';
+    // Don't set CSS width/height - let it use native canvas dimensions
+    canvasElement1.style.pointerEvents = 'none';
+    canvasElement1.style.zIndex = '2'; // In front of main canvas (which is z-index: 1)
+    box1.appendChild(canvasElement1);
+  }
+
+  if (box2 && !effectsCanvas2) {
+    // CRITICAL: Ensure parent has position relative so absolute canvas stays inside
+    box2.style.position = 'relative';
+
+    let rect = box2.getBoundingClientRect();
+    effectsCanvas2 = createGraphics(rect.width, rect.height);
+
+    let canvasElement2 = effectsCanvas2.canvas;
+    canvasElement2.style.position = 'absolute';
+    canvasElement2.style.top = '0';
+    canvasElement2.style.left = '0';
+    // Don't set CSS width/height - let it use native canvas dimensions
+    canvasElement2.style.pointerEvents = 'none';
+    canvasElement2.style.zIndex = '2'; // In front of main canvas (which is z-index: 1)
+    box2.appendChild(canvasElement2);
+  }
+}
+
+// Handle window resize
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+
+  // Recreate effects canvases
+  if (effectsCanvas1) {
+    effectsCanvas1.remove();
+    effectsCanvas1 = null;
+  }
+  if (effectsCanvas2) {
+    effectsCanvas2.remove();
+    effectsCanvas2 = null;
+  }
+  setupEffectsCanvases();
 }
 
 function draw() {
   try {
-    // Draw background or video feed
-    if (CONFIG.canvas.showVideo) {
-      image(video, 0, 0, width, height);
-    } else {
-      background(...CONFIG.canvas.backgroundColor);
-    }
+    // Clear main canvas (transparent background so UI shows through)
+    clear();
+
+    // Clear effects canvases
+    if (effectsCanvas1) effectsCanvas1.clear();
+    if (effectsCanvas2) effectsCanvas2.clear();
 
     // === MY CHARACTER (from local webcam) ===
     let myFaceData = null;
@@ -39,7 +115,7 @@ function draw() {
       // Extract face data for networking
       myFaceData = extractFaceData(face);
 
-      // Send to server
+      // Send to peer
       sendFaceData(myFaceData);
     }
 
@@ -65,41 +141,77 @@ function draw() {
     });
   }
 
-  // For single LOCAL participant (waiting for peer), use original direct rendering
+  // Update UI to show/hide second participant
+  let connected = isConnected();
+  if (typeof updateConnectionUI === 'function') {
+    updateConnectionUI(connected);
+  }
+
+  // Ensure effects canvases exist
+  setupEffectsCanvases();
+
+  // For single LOCAL participant (waiting for peer), center character in box
   if (allParticipants.length === 1 && allParticipants[0].isLocal && faces.length > 0) {
     let face = faces[0];
     let faceData = allParticipants[0].data;
 
-    // Calculate distance-based scale
-    let distanceScale = faceData.distanceScale;
-    let eyeScale = faceData.eyeScale;
+    // Get the participant box position
+    let box1 = document.getElementById('participant-1');
+    if (box1) {
+      let rect = box1.getBoundingClientRect();
+      let boxCenterX = rect.left + rect.width / 2;
+      let boxCenterY = rect.top + rect.height / 2;
 
-    // Get expression measurements
-    let browRaiseAmount = faceData.browRaiseAmount;
-    let mouthOpenRatio = faceData.mouthOpenRatio;
+      // Draw character on main canvas FIRST (this sets window.browRaiseAmount and window.mouthOpenRatio)
+      push();
+      // Move to box center
+      translate(boxCenterX, boxCenterY);
 
-    // Detect "surprised" event
-    let isSurprised = detectSurprised(browRaiseAmount, mouthOpenRatio);
+      // Center the character by offsetting by face center
+      translate(-faceData.faceCenterX, -faceData.faceCenterY);
 
-    // Activate/deactivate effects based on events
-    if (isSurprised) {
-      activateSpeedLines();
-    } else {
-      deactivateSpeedLines();
+      // Calculate distance-based scale
+      let distanceScale = faceData.distanceScale;
+      let eyeScale = faceData.eyeScale;
+
+      // Draw debug keypoints
+      if (CONFIG.debug.showKeypoints) {
+        drawFaceKeypoints(face);
+      }
+
+      // Draw components (these set window.browRaiseAmount and window.mouthOpenRatio)
+      drawEyes(face, distanceScale);
+      drawLips(face, distanceScale, eyeScale);
+      drawEyebrows(face, distanceScale, eyeScale);
+
+      pop();
+
+      // NOW check for surprise and draw speed lines on effects canvas
+      if (effectsCanvas1) {
+        let browRaiseAmount = window.browRaiseAmount || 0;
+        let mouthOpenRatio = window.mouthOpenRatio || 0;
+        let isSurprised = detectSurprised(browRaiseAmount, mouthOpenRatio);
+
+        // DEBUG: Draw a test rectangle to verify effects canvas is visible
+        effectsCanvas1.fill(255, 0, 255, 50); // Semi-transparent magenta
+        effectsCanvas1.noStroke();
+        effectsCanvas1.rect(10, 10, 100, 100);
+
+        if (isSurprised) {
+          // Debug logging
+          if (frameCount % 30 === 0) {
+            console.log('🎨 Drawing speed lines on effectsCanvas1:', {
+              canvasSize: `${effectsCanvas1.width}x${effectsCanvas1.height}`,
+              browRaiseAmount: browRaiseAmount.toFixed(3)
+            });
+          }
+          // Draw speed lines centered in effects canvas
+          drawSpeedLines(browRaiseAmount, effectsCanvas1.width / 2, effectsCanvas1.height / 2, effectsCanvas1);
+        }
+      } else {
+        console.warn('⚠️ effectsCanvas1 not found!');
+      }
     }
-
-    // Draw speed lines BEFORE character (background effect)
-    drawSpeedLines(browRaiseAmount, faceData.faceCenterX, faceData.faceCenterY);
-
-    // Draw debug keypoints FIRST (so components are drawn on top)
-    if (CONFIG.debug.showKeypoints) {
-      drawFaceKeypoints(face);
-    }
-
-    // Draw components directly at their actual positions
-    drawEyes(face, distanceScale);
-    drawLips(face, distanceScale, eyeScale);
-    drawEyebrows(face, distanceScale, eyeScale);
 
     return;
   }
@@ -110,10 +222,12 @@ function draw() {
   // Draw grid borders
   drawGridBorders(allParticipants.length);
 
-  // Render each character
+  // Render each character with effects on separate canvases
   allParticipants.forEach((participant, index) => {
     let pos = gridPositions[index];
+    let effectsCanvas = index === 0 ? effectsCanvas1 : effectsCanvas2;
 
+    // Draw character on main canvas FIRST
     push();
     // Move to grid cell center
     translate(pos.x, pos.y);
@@ -127,8 +241,10 @@ function draw() {
       translate(-participant.data.faceCenterX, -participant.data.faceCenterY);
     }
 
-    // Render this character
-    renderCharacter(participant.data, participant.isLocal, faces.length > 0 ? faces[0] : null);
+    // Render this character (this sets window.browRaiseAmount for local participant)
+    // Only pass the face object to LOCAL participant
+    let faceObj = (participant.isLocal && faces.length > 0) ? faces[0] : null;
+    renderCharacter(participant.data, participant.isLocal, faceObj, false);
 
     // Optional: Show participant ID for debugging
     if (CONFIG.debug.showParticipantIds) {
@@ -140,6 +256,20 @@ function draw() {
     }
 
     pop();
+
+    // NOW draw speed lines on effects canvas (after character is drawn)
+    if (effectsCanvas && participant.data) {
+      // For local participant, use window globals (just calculated by drawing components)
+      // For remote participant, use transmitted data
+      let browRaiseAmount = participant.isLocal ? (window.browRaiseAmount || 0) : (participant.data.browRaiseAmount || 0);
+      let mouthOpenRatio = participant.isLocal ? (window.mouthOpenRatio || 0) : (participant.data.mouthOpenRatio || 0);
+      let isSurprised = detectSurprised(browRaiseAmount, mouthOpenRatio);
+
+      if (isSurprised) {
+        // Draw speed lines centered in effects canvas
+        drawSpeedLines(browRaiseAmount, effectsCanvas.width / 2, effectsCanvas.height / 2, effectsCanvas);
+      }
+    }
   });
 
   } catch (error) {
@@ -153,8 +283,9 @@ function draw() {
  * @param {object} faceData - Face data (local or remote)
  * @param {boolean} isLocal - Whether this is the local user
  * @param {object} face - Full face object (only for local)
+ * @param {boolean} skipSpeedLines - If true, skip speed line drawing (default false)
  */
-function renderCharacter(faceData, isLocal, face) {
+function renderCharacter(faceData, isLocal, face, skipSpeedLines = false) {
   if (!faceData) return;
 
   // For local character, we have the full face object
@@ -166,23 +297,6 @@ function renderCharacter(faceData, isLocal, face) {
     // Calculate scales
     let distanceScale = faceData.distanceScale;
     let eyeScale = faceData.eyeScale;
-
-    // Get expressions
-    let browRaiseAmount = faceData.browRaiseAmount;
-    let mouthOpenRatio = faceData.mouthOpenRatio;
-
-    // Detect events
-    let isSurprised = detectSurprised(browRaiseAmount, mouthOpenRatio);
-
-    // Activate/deactivate effects
-    if (isSurprised) {
-      activateSpeedLines();
-    } else {
-      deactivateSpeedLines();
-    }
-
-    // Draw speed lines
-    drawSpeedLines(browRaiseAmount, faceData.faceCenterX, faceData.faceCenterY);
 
     // Draw debug keypoints
     if (CONFIG.debug.showKeypoints) {
@@ -212,18 +326,8 @@ function renderCharacter(faceData, isLocal, face) {
     // This allows us to use the existing drawing functions!
     let remoteFace = reconstructFaceFromKeypoints(faceData.keypoints);
 
-    let browRaiseAmount = faceData.browRaiseAmount || 0;
-    let mouthOpenRatio = faceData.mouthOpenRatio || 0;
     let distanceScale = faceData.distanceScale || 1;
     let eyeScale = faceData.eyeScale || 1;
-
-    // Detect events for remote character
-    let isSurprised = detectSurprised(browRaiseAmount, mouthOpenRatio);
-
-    // Draw speed lines for remote character
-    if (isSurprised) {
-      drawSpeedLines(browRaiseAmount, 0, 0);
-    }
 
     // Draw components using existing functions!
     drawEyes(remoteFace, distanceScale);
