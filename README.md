@@ -1,62 +1,69 @@
-# Face Tracking Character Chatting App
+# Face Tracking Character Chat
 
-A real-time face tracking application built with p5.js and ml5.js that creates cartoon-style facial features tracking your real face movements.
+A real-time P2P face tracking application that creates cartoon-style characters for 2 people. Each person's facial movements control their character's eyes, eyebrows, and lips in real-time.
 
 ## Features
 
-- **Exaggerated Eyes**: Large cartoon eyes that blink, track pupil movement, and rotate with face tilt
-  - Pupils stay clipped within eye boundaries during blinking
-  - Side-by-side positioning with no gaps or overlap
-  - Vertical offset customization
-- **Animated Lips**: Dynamic mouth rendering that changes shape when you talk
-  - Smooth curve when mouth is closed
-  - Smooth oval shape when mouth is open
-  - Position exaggeration based on eye scale
-- **Dynamic Eyebrows**: Expressive eyebrows with automatic raise detection
-  - **NEW**: Detects when you raise eyebrows and exaggerates the movement
-  - Rotation-invariant detection (works even when you tilt your head)
-  - Height multiplier creates cartoon-like expressions
-  - Scale proportionally with eye size changes
-  - Debug visualization shows detection metrics
-- **Distance Scaling**: All features scale based on distance from camera
-  - Configurable min/max scale limits per component
-  - Eyes, lips, and eyebrows respond independently
-- **Face Rotation**: Components rotate naturally when you tilt your head
-- **Clean Architecture**: Centralized keypoint constants for maintainability
-- **Debug Modes**: Multiple visualization options for development
+### Character Rendering
+- **Exaggerated Eyes**: Large cartoon eyes with pupil tracking and blinking
+- **Animated Lips**: Dynamic mouth that changes shape when talking
+- **Dynamic Eyebrows**: Automatic raise detection with exaggerated movement
+- **Distance Scaling**: All features scale based on camera distance
+- **Face Rotation**: Components rotate naturally with head tilt
+
+### Multi-User (P2P)
+- **2-Person Support**: Connect with one friend via PeerJS
+- **Room Code System**: Share a simple URL to connect
+- **Real-time Sync**: Both characters update instantly
+- **Side-by-side View**: Both characters displayed together
+- **No Server Needed**: Direct peer-to-peer connection
+
+### Visual Effects
+- **Speed Lines**: Appear when you make a surprised expression
+- **Event Detection**: Recognizes facial expressions and triggers effects
 
 ## Technologies Used
 
 - **p5.js**: Creative coding library for canvas rendering
 - **ml5.js**: Machine learning library for face mesh detection
 - **MediaPipe Face Mesh**: Underlying ML model for 468+ facial landmark detection
+- **PeerJS**: WebRTC peer-to-peer networking for real-time connection
 
-## Setup
+## Quick Start
 
-1. Clone this repository:
-```bash
-git clone https://github.com/EllieMinhyeonNa/face-tracking-character-chatting-app.git
-cd face-tracking-character-chatting-app
-```
+### Solo Testing (Single User)
+1. Clone this repository
+2. Start HTTPS server: `python3 https-server.py` (generates certificate if needed)
+3. Open `https://localhost:8080` in your browser
+4. Allow camera access
+5. See your character!
 
-2. Open `index.html` in a modern web browser
+### Multi-User Demo (2 People)
+1. **Person 1**: Open `https://localhost:8080`
+2. Copy the room URL shown on screen
+3. **Person 2**: Open that URL on their device
+4. Both characters appear side-by-side!
 
-3. Allow camera permissions when prompted
+**Note**: Both devices must be on the same WiFi network. HTTPS is required for camera access on non-localhost devices.
 
 ## File Structure
 
 ```
-├── index.html              # Main HTML with library imports
-├── config.js               # Configuration for all visual parameters
-├── sketch.js               # Main orchestration and face tracking
+├── index.html              # Entry point
+├── sketch.js               # Main p5.js sketch
+├── networking-peer.js      # PeerJS P2P networking
+├── config.js               # Visual configuration
 ├── constants/
-│   └── keypoints.js       # Centralized MediaPipe keypoint indices
+│   └── keypoints.js       # Face mesh keypoint indices
 ├── components/
-│   ├── eyes.js            # Eye rendering with rotation and blinking
-│   ├── lips.js            # Mouth/lip animation with smooth curves
-│   └── eyebrows.js        # Eyebrow tracking with raise detection
-├── CLAUDE.md              # This documentation
-└── REFACTORING.md         # Recent codebase improvements
+│   ├── eyes.js            # Eye rendering
+│   ├── lips.js            # Lip rendering
+│   └── eyebrows.js        # Eyebrow rendering
+├── effects/
+│   ├── events.js          # Expression detection
+│   └── speedlines.js      # Visual effects
+├── README.md              # This file
+└── ARCHITECTURE.md        # Technical documentation
 ```
 
 ## Architecture
@@ -120,11 +127,21 @@ Central configuration file containing all adjustable parameters:
 ### sketch.js
 Main orchestrator that:
 - Sets up webcam and face mesh detection
+- Initializes PeerJS networking for P2P connection
+- Handles both local and remote character rendering
 - Calculates distance-based scaling: `faceWidth / baseFaceWidth`
 - Calculates eye scale: `constrain(distanceScale, eyes.minScale, eyes.maxScale)`
 - Renders components in order (keypoints → eyes → lips → eyebrows)
 - Provides keyboard shortcuts and debug visualization
-- Helper functions: `calculateDistanceScale()`, `drawFaceKeypoints()`
+- Helper functions: `calculateDistanceScale()`, `drawFaceKeypoints()`, `reconstructFaceFromKeypoints()`
+
+### networking-peer.js
+PeerJS networking layer that:
+- Creates or joins P2P rooms using URL parameters
+- Extracts essential face data (~50 keypoints) for transmission
+- Sends/receives face data in real-time
+- Displays room code overlay for easy connection
+- Handles connection lifecycle (open, data, close, error)
 
 ### Components Pattern
 Each component follows a consistent interface:
@@ -181,12 +198,21 @@ function drawComponent(face, distanceScale, eyeScale) {
 - Scales stroke weight with distance
 
 **components/eyebrows.js:**
-- **NEW**: Detects eyebrow raising via brow-to-eye distance
+- Detects eyebrow raising via brow-to-eye distance
 - Rotation-invariant detection (resistant to head tilt)
 - Applies height exaggeration when eyebrows are raised
 - Defines top/bottom eyebrow keypoint rows (using KEYPOINTS constants)
 - Draws curve through centerline
 - Optional debug visualization showing distance ratio and raise amount
+
+**networking-peer.js:**
+- `initNetworking()`: Checks URL for room code, creates or joins room
+- `createRoom()`: Person 1 - generates peer ID and displays room code
+- `joinRoom(roomCode)`: Person 2 - connects to host's peer ID
+- `extractFaceData(face)`: Extracts ~50 essential keypoints from 468 total
+- `sendFaceData(faceData)`: Transmits face data to peer
+- `getRemoteFaceData()`: Returns received remote face data
+- `reconstructFaceFromKeypoints(kp)`: Recreates face object from transmitted keypoints
 
 ## Keyboard Controls
 
@@ -195,6 +221,7 @@ function drawComponent(face, distanceScale, eyeScale) {
 - **`K`**: Toggle face mesh keypoints (green dots) visibility
 - **`D`**: Toggle eyebrow debug points (red circles) on/off
 - **`V`**: Toggle between video feed and solid background color
+- **`P`**: Toggle participant IDs (shows "YOU" vs peer ID)
 
 **Note**: Eyebrow dynamics debug (distance ratio, raise amount, height multiplier) is controlled by `CONFIG.eyebrows.showDynamicsDebug` in config.js
 
@@ -304,6 +331,20 @@ if (smileRatio > 0.45) {
 - Use keyboard shortcut `K` to show all face mesh points
 - Reference [MediaPipe Face Mesh documentation](https://github.com/tensorflow/tfjs-models/tree/master/face-landmarks-detection) for keypoint locations
 - Follow the exaggeration pattern: `faceCenter + (offset * exaggerationFactor * scale)`
+
+### Scaling to More People
+
+**Current limitation**: PeerJS simple connection supports 2 people only.
+
+To support 3+ people, you would need to:
+1. **Switch networking approach**:
+   - Use PeerJS mesh network (each peer connects to all others)
+   - Or implement a star topology (one host, multiple clients)
+   - Or switch to Socket.io server-based approach (see ARCHITECTURE.md for details)
+2. **Update grid layout**: Modify `calculateGridPositions()` for 2x2 or larger grids
+3. **Handle multiple remote participants**: Change `getRemoteFaceData()` to return array/map
+
+**Note**: The component rendering logic is already designed to handle multiple participants, so the main work would be in the networking layer. See ARCHITECTURE.md for detailed discussion of networking options.
 
 ### Code Quality Recommendations
 

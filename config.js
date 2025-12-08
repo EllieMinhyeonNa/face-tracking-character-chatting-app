@@ -45,6 +45,7 @@ const CONFIG = {
   debug: {
     showKeypoints: true,       // Show green face mesh points
     showIndices: false,        // Show keypoint index numbers
+    showParticipantIds: false, // Show participant IDs for multi-user
   },
 
   // Canvas settings

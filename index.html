@@ -4,9 +4,10 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ml5.js faceMesh Webcam Example</title>
+    <title>Face Tracking Character Chat</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.10/p5.min.js"></script>
     <script src="https://unpkg.com/ml5@1/dist/ml5.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.0/dist/peerjs.min.js"></script>
   </head>
   <body>
     <!-- Constants must load first -->
@@ -23,6 +24,9 @@
     <!-- Effects system for event-based visual effects -->
     <script src="effects/events.js"></script>
     <script src="effects/speedlines.js"></script>
+
+    <!-- Networking layer for P2P -->
+    <script src="networking-peer.js"></script>
 
     <!-- Main sketch orchestrates everything -->
     <script src="sketch.js"></script>

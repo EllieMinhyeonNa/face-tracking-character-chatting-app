@@ -1,0 +1,285 @@
+// PeerJS networking - simple P2P connection for 2 people
+// Person 1 creates a room, Person 2 joins with the room code
+
+let peer = null;
+let connection = null;
+let remoteFaceData = null;
+let myPeerId = null;
+let isHost = false;
+
+/**
+ * Initialize PeerJS connection
+ */
+function initNetworking() {
+  // Check if there's a room code in the URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const roomCode = urlParams.get('room');
+
+  if (roomCode) {
+    // Join existing room
+    joinRoom(roomCode);
+  } else {
+    // Create new room
+    createRoom();
+  }
+}
+
+/**
+ * Create a new room (Person 1)
+ */
+function createRoom() {
+  peer = new Peer(); // PeerJS generates a random ID
+  isHost = true;
+
+  peer.on('open', (id) => {
+    myPeerId = id;
+    console.log('🎉 Room created! Your peer ID:', id);
+    console.log('📋 Share this URL with your friend:');
+    console.log(`   ${window.location.origin}${window.location.pathname}?room=${id}`);
+
+    // Show room code on screen
+    showRoomCode(id);
+  });
+
+  peer.on('connection', (conn) => {
+    console.log('👋 Someone joined!');
+    connection = conn;
+    setupConnection();
+  });
+
+  peer.on('error', (err) => {
+    console.error('PeerJS error:', err);
+  });
+}
+
+/**
+ * Join an existing room (Person 2)
+ */
+function joinRoom(roomCode) {
+  peer = new Peer(); // PeerJS generates our ID
+  isHost = false;
+
+  peer.on('open', (id) => {
+    myPeerId = id;
+    console.log('🔗 Connecting to room:', roomCode);
+
+    // Connect to the host
+    connection = peer.connect(roomCode);
+    setupConnection();
+  });
+
+  peer.on('error', (err) => {
+    console.error('PeerJS error:', err);
+    alert('Failed to connect! Check the room code.');
+  });
+}
+
+/**
+ * Setup connection event handlers
+ */
+function setupConnection() {
+  console.log('⏳ Setting up connection...');
+
+  connection.on('open', () => {
+    console.log('✅ Connected to peer!');
+    console.log('Connection object:', connection);
+    hideRoomCode();
+  });
+
+  connection.on('data', (data) => {
+    // Receive remote face data
+    console.log('📥 Received data from peer');
+    remoteFaceData = data;
+  });
+
+  connection.on('close', () => {
+    console.log('❌ Peer disconnected');
+    remoteFaceData = null;
+    if (isHost) {
+      showRoomCode(myPeerId); // Show room code again if host
+    }
+  });
+
+  connection.on('error', (err) => {
+    console.error('❌ Connection error:', err);
+  });
+}
+
+/**
+ * Extract essential face data to send over network
+ * @param {object} face - ml5 face mesh result
+ * @returns {object} Compact face data for transmission
+ */
+function extractFaceData(face) {
+  if (!face || !face.keypoints) return null;
+
+  // === ESSENTIAL KEYPOINTS FOR REMOTE RENDERING ===
+  // Send only ~50 keypoints instead of 468 (90% reduction!)
+  let essentialKeypoints = {};
+
+  // Helper to extract a keypoint
+  function addPoint(name, index) {
+    let pt = face.keypoints[index];
+    essentialKeypoints[name] = { x: pt.x, y: pt.y };
+  }
+
+  // Helper to extract array of keypoints
+  function addPointArray(name, indices) {
+    essentialKeypoints[name] = indices.map(i => {
+      let pt = face.keypoints[i];
+      return { x: pt.x, y: pt.y };
+    });
+  }
+
+  // Face structure (4 points)
+  addPoint('NOSE_BRIDGE', KEYPOINTS.NOSE_BRIDGE);
+  addPoint('NOSE_TIP', KEYPOINTS.NOSE_TIP);
+  addPoint('LEFT_FACE_EDGE', KEYPOINTS.LEFT_FACE_EDGE);
+  addPoint('RIGHT_FACE_EDGE', KEYPOINTS.RIGHT_FACE_EDGE);
+
+  // Eyes (10 points)
+  addPoint('LEFT_PUPIL', KEYPOINTS.LEFT_PUPIL);
+  addPoint('LEFT_EYE_LEFT_CORNER', KEYPOINTS.LEFT_EYE_LEFT_CORNER);
+  addPoint('LEFT_EYE_RIGHT_CORNER', KEYPOINTS.LEFT_EYE_RIGHT_CORNER);
+  addPoint('LEFT_EYE_TOP', KEYPOINTS.LEFT_EYE_TOP);
+  addPoint('LEFT_EYE_BOTTOM', KEYPOINTS.LEFT_EYE_BOTTOM);
+
+  addPoint('RIGHT_PUPIL', KEYPOINTS.RIGHT_PUPIL);
+  addPoint('RIGHT_EYE_LEFT_CORNER', KEYPOINTS.RIGHT_EYE_LEFT_CORNER);
+  addPoint('RIGHT_EYE_RIGHT_CORNER', KEYPOINTS.RIGHT_EYE_RIGHT_CORNER);
+  addPoint('RIGHT_EYE_TOP', KEYPOINTS.RIGHT_EYE_TOP);
+  addPoint('RIGHT_EYE_BOTTOM', KEYPOINTS.RIGHT_EYE_BOTTOM);
+
+  // Eyebrows (20 points)
+  addPointArray('EYEBROW_LEFT_TOP_ROW', KEYPOINTS.EYEBROW_LEFT_TOP_ROW);
+  addPointArray('EYEBROW_LEFT_BOTTOM_ROW', KEYPOINTS.EYEBROW_LEFT_BOTTOM_ROW);
+  addPointArray('EYEBROW_RIGHT_TOP_ROW', KEYPOINTS.EYEBROW_RIGHT_TOP_ROW);
+  addPointArray('EYEBROW_RIGHT_BOTTOM_ROW', KEYPOINTS.EYEBROW_RIGHT_BOTTOM_ROW);
+
+  // Lips (4 basic + 10 for smooth curves)
+  addPoint('LIP_LEFT_CORNER', KEYPOINTS.LIP_LEFT_CORNER);
+  addPoint('LIP_RIGHT_CORNER', KEYPOINTS.LIP_RIGHT_CORNER);
+  addPoint('LIP_TOP_CENTER', KEYPOINTS.LIP_TOP_CENTER);
+  addPoint('LIP_BOTTOM_CENTER', KEYPOINTS.LIP_BOTTOM_CENTER);
+
+  // Smooth closed mouth curve points
+  addPointArray('LIP_SMOOTH_UPPER', [61, 39, 0, 269, 291]);
+  addPointArray('LIP_SMOOTH_LOWER', [61, 181, 17, 405, 291]);
+
+  // Open mouth inner contour
+  addPointArray('LIP_UPPER_INNER', [78, 81, 13, 311, 308]);
+  addPointArray('LIP_LOWER_INNER', [78, 178, 14, 402, 308]);
+
+  // Calculate metrics
+  let noseBridge = face.keypoints[KEYPOINTS.NOSE_BRIDGE];
+  let leftFaceEdge = face.keypoints[KEYPOINTS.LEFT_FACE_EDGE];
+  let rightFaceEdge = face.keypoints[KEYPOINTS.RIGHT_FACE_EDGE];
+  let faceWidth = dist(leftFaceEdge.x, leftFaceEdge.y, rightFaceEdge.x, rightFaceEdge.y);
+  let distanceScale = faceWidth / CONFIG.distance.baseFaceWidth;
+  let eyeScale = constrain(distanceScale, CONFIG.eyes.minScale, CONFIG.eyes.maxScale);
+
+  // Expression data
+  let browRaiseAmount = window.browRaiseAmount || 0;
+  let mouthOpenRatio = window.mouthOpenRatio || 0;
+
+  return {
+    // Essential keypoints for full-quality remote rendering
+    keypoints: essentialKeypoints,
+
+    // Face center for positioning
+    faceCenterX: noseBridge.x,
+    faceCenterY: noseBridge.y,
+
+    // Scale
+    distanceScale: distanceScale,
+    eyeScale: eyeScale,
+
+    // Expression
+    browRaiseAmount: browRaiseAmount,
+    mouthOpenRatio: mouthOpenRatio,
+
+    // Timestamp
+    timestamp: Date.now()
+  };
+}
+
+/**
+ * Send face data to peer
+ */
+function sendFaceData(faceData) {
+  if (connection && connection.open) {
+    connection.send(faceData);
+  }
+}
+
+/**
+ * Get remote participant's face data
+ */
+function getRemoteFaceData() {
+  return remoteFaceData;
+}
+
+/**
+ * Check if connected to peer
+ */
+function isConnected() {
+  return connection && connection.open;
+}
+
+/**
+ * Show room code on screen
+ */
+function showRoomCode(code) {
+  let overlay = document.getElementById('room-code-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'room-code-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.9);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      font-family: monospace;
+    `;
+    document.body.appendChild(overlay);
+  }
+
+  const shortCode = code.slice(0, 8);
+  const localUrl = `${window.location.origin}${window.location.pathname}?room=${code}`;
+  const phoneUrl = `https://192.168.0.229:8080/?room=${code}`;
+
+  overlay.innerHTML = `
+    <h1 style="font-size: 48px; margin-bottom: 20px;">Waiting for partner...</h1>
+    <p style="font-size: 24px; margin-bottom: 40px;">Share this code:</p>
+    <div style="background: #333; padding: 30px; border-radius: 10px; font-size: 72px; letter-spacing: 10px;">
+      ${shortCode}
+    </div>
+    <p style="font-size: 18px; margin-top: 40px; color: #888;">On this laptop:</p>
+    <div style="background: #222; padding: 15px; border-radius: 5px; font-size: 14px; max-width: 80%; word-break: break-all; margin-bottom: 20px;">
+      ${localUrl}
+    </div>
+    <p style="font-size: 18px; color: #888;">On phone/other device:</p>
+    <div style="background: #222; padding: 15px; border-radius: 5px; font-size: 14px; max-width: 80%; word-break: break-all;">
+      ${phoneUrl}
+    </div>
+  `;
+  overlay.style.display = 'flex';
+}
+
+/**
+ * Hide room code overlay
+ */
+function hideRoomCode() {
+  const overlay = document.getElementById('room-code-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+}
