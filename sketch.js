@@ -6,8 +6,9 @@ let video;
 let faces = [];
 let options = { maxFaces: 1, refineLandmarks: true, flipHorizontal: false };
 
-// Main canvas for character rendering (eyes, lips, eyebrows)
-let mainCanvas;
+// Separate canvases for character rendering - one per participant
+let characterCanvas1 = null;
+let characterCanvas2 = null;
 
 // Separate canvases for effects (speed lines) - one per participant
 let effectsCanvas1 = null;
@@ -18,14 +19,8 @@ function preload() {
 }
 
 function setup() {
-  // Create main canvas for character rendering
-  mainCanvas = createCanvas(windowWidth, windowHeight);
-  mainCanvas.parent('app-container');
-  mainCanvas.style('position', 'absolute');
-  mainCanvas.style('top', '0');
-  mainCanvas.style('left', '0');
-  mainCanvas.style('pointer-events', 'none');
-  mainCanvas.style('z-index', '1');
+  // No main canvas needed - we'll use per-participant canvases
+  noCanvas(); // Disable default p5 canvas
 
   video = createCapture(VIDEO);
   video.size(640, 480);
@@ -35,67 +30,82 @@ function setup() {
   // Initialize networking
   initNetworking();
 
-  // Create effects canvases
-  setupEffectsCanvases();
+  // Create canvases for both character and effects
+  setupCanvases();
 }
 
 /**
- * Create separate canvas for each participant's effects
+ * Create separate canvases for each participant (character + effects)
  */
-function setupEffectsCanvases() {
-  let box1 = document.getElementById('participant-1');
-  let box2 = document.getElementById('participant-2');
+function setupCanvases() {
+  setupCanvasForParticipant('participant-1');
+  setupCanvasForParticipant('participant-2');
+}
 
-  if (box1 && !effectsCanvas1) {
-    // CRITICAL: Ensure parent has position relative so absolute canvas stays inside
-    box1.style.position = 'relative';
+/**
+ * Helper to create both character and effects canvas for a participant box
+ */
+function setupCanvasForParticipant(boxId) {
+  let box = document.getElementById(boxId);
+  if (!box) return;
 
-    let rect = box1.getBoundingClientRect();
+  // Ensure parent has position relative
+  box.style.position = 'relative';
+
+  let rect = box.getBoundingClientRect();
+
+  // Skip if box is hidden (has no dimensions)
+  if (rect.width === 0 || rect.height === 0) {
+    return;
+  }
+
+  let isParticipant1 = boxId === 'participant-1';
+
+  // Create character canvas (z-index: 1 - base layer for character)
+  if (isParticipant1 && !characterCanvas1) {
+    characterCanvas1 = createGraphics(rect.width, rect.height);
+    appendCanvas(characterCanvas1.canvas, box, '1');
+  } else if (!isParticipant1 && !characterCanvas2) {
+    characterCanvas2 = createGraphics(rect.width, rect.height);
+    appendCanvas(characterCanvas2.canvas, box, '1');
+  }
+
+  // Create effects canvas (z-index: 5 - above character)
+  if (isParticipant1 && !effectsCanvas1) {
     effectsCanvas1 = createGraphics(rect.width, rect.height);
-
-    let canvasElement1 = effectsCanvas1.canvas;
-    canvasElement1.style.display = 'block'; // CRITICAL: Override p5's display:none!
-    canvasElement1.style.position = 'absolute';
-    canvasElement1.style.top = '0';
-    canvasElement1.style.left = '0';
-    canvasElement1.style.width = '100%';
-    canvasElement1.style.height = '100%';
-    canvasElement1.style.pointerEvents = 'none';
-    canvasElement1.style.zIndex = '5'; // Above main canvas but below labels
-    box1.appendChild(canvasElement1);
-  }
-
-  if (box2 && !effectsCanvas2) {
-    // CRITICAL: Ensure parent has position relative so absolute canvas stays inside
-    box2.style.position = 'relative';
-
-    let rect = box2.getBoundingClientRect();
-
-    // Check if box2 is actually visible (has non-zero dimensions)
-    if (rect.width === 0 || rect.height === 0) {
-      return; // Skip creation if box is hidden
-    }
-
+    appendCanvas(effectsCanvas1.canvas, box, '5');
+  } else if (!isParticipant1 && !effectsCanvas2) {
     effectsCanvas2 = createGraphics(rect.width, rect.height);
-
-    let canvasElement2 = effectsCanvas2.canvas;
-    canvasElement2.style.display = 'block'; // CRITICAL: Override p5's display:none!
-    canvasElement2.style.position = 'absolute';
-    canvasElement2.style.top = '0';
-    canvasElement2.style.left = '0';
-    canvasElement2.style.width = '100%';
-    canvasElement2.style.height = '100%';
-    canvasElement2.style.pointerEvents = 'none';
-    canvasElement2.style.zIndex = '5'; // Above main canvas but below labels
-    box2.appendChild(canvasElement2);
+    appendCanvas(effectsCanvas2.canvas, box, '5');
   }
+}
+
+/**
+ * Helper to append canvas to participant box with proper styling
+ */
+function appendCanvas(canvasElement, parentBox, zIndex) {
+  canvasElement.style.display = 'block';
+  canvasElement.style.position = 'absolute';
+  canvasElement.style.top = '0';
+  canvasElement.style.left = '0';
+  canvasElement.style.width = '100%';
+  canvasElement.style.height = '100%';
+  canvasElement.style.pointerEvents = 'none';
+  canvasElement.style.zIndex = zIndex;
+  parentBox.appendChild(canvasElement);
 }
 
 // Handle window resize
 function windowResized() {
-  resizeCanvas(windowWidth, windowHeight);
-
-  // Recreate effects canvases
+  // Recreate all canvases
+  if (characterCanvas1) {
+    characterCanvas1.remove();
+    characterCanvas1 = null;
+  }
+  if (characterCanvas2) {
+    characterCanvas2.remove();
+    characterCanvas2 = null;
+  }
   if (effectsCanvas1) {
     effectsCanvas1.remove();
     effectsCanvas1 = null;
@@ -104,15 +114,14 @@ function windowResized() {
     effectsCanvas2.remove();
     effectsCanvas2 = null;
   }
-  setupEffectsCanvases();
+  setupCanvases();
 }
 
 function draw() {
   try {
-    // Clear main canvas (transparent background so UI shows through)
-    clear();
-
-    // Clear effects canvases
+    // Clear all canvases
+    if (characterCanvas1) characterCanvas1.clear();
+    if (characterCanvas2) characterCanvas2.clear();
     if (effectsCanvas1) effectsCanvas1.clear();
     if (effectsCanvas2) effectsCanvas2.clear();
 
@@ -189,140 +198,57 @@ function draw() {
     updateConnectionUI(connected);
   }
 
-  // Ensure effects canvases exist (must run AFTER updateConnectionUI shows participant-2)
+  // Ensure canvases exist (must run AFTER updateConnectionUI shows participant-2)
   // Use setTimeout to let the DOM update first
-  if (connected && !effectsCanvas2) {
+  if (connected && (!characterCanvas2 || !effectsCanvas2)) {
     setTimeout(() => {
-      setupEffectsCanvases();
+      setupCanvases();
     }, 100); // Give DOM time to update
   } else {
-    setupEffectsCanvases();
+    setupCanvases();
   }
 
-  // For single LOCAL participant (waiting for peer), center character in box
-  if (allParticipants.length === 1 && allParticipants[0].isLocal && faces.length > 0) {
-    let face = faces[0];
-    let faceData = allParticipants[0].data;
+  // Render each participant on their own canvas
+  allParticipants.forEach((participant) => {
+    // Get the character and effects canvas for this participant
+    let characterCanvas = participant.boxId === 'participant-1' ? characterCanvas1 : characterCanvas2;
+    let effectsCanvas = participant.boxId === 'participant-1' ? effectsCanvas1 : effectsCanvas2;
 
-    // Get the participant box position
-    let box1 = document.getElementById('participant-1');
-    if (box1) {
-      let rect = box1.getBoundingClientRect();
-      let boxCenterX = rect.left + rect.width / 2;
-      let boxCenterY = rect.top + rect.height / 2;
+    if (!characterCanvas || !effectsCanvas) return;
 
-      // Draw character on main canvas FIRST (this sets window.browRaiseAmount and window.mouthOpenRatio)
-      push();
-      // Move to box center
-      translate(boxCenterX, boxCenterY);
+    let faceData = participant.data;
+    if (!faceData) return;
 
-      // Center the character by offsetting by face center
-      translate(-faceData.faceCenterX, -faceData.faceCenterY);
+    // Draw character centered in their canvas
+    characterCanvas.push();
 
-      // Calculate distance-based scale
-      let distanceScale = faceData.distanceScale;
-      let eyeScale = faceData.eyeScale;
+    // Center in canvas
+    characterCanvas.translate(characterCanvas.width / 2, characterCanvas.height / 2);
 
-      // Determine lip color based on role
-      let isHost = allParticipants[0].isHost;
-      let lipColor = isHost ? [210, 45, 45] : [101, 43, 178];
+    // Center the character by offsetting by face center
+    characterCanvas.translate(-faceData.faceCenterX, -faceData.faceCenterY);
 
-      // Draw debug keypoints (disabled when waiting alone)
-      // Keypoints are only shown when explicitly enabled AND not connected
-      if (CONFIG.debug.showKeypoints && !connected) {
-        drawFaceKeypoints(face);
-      }
-
-      // Draw components (these set window.browRaiseAmount and window.mouthOpenRatio)
-      drawEyes(face, distanceScale);
-      drawLips(face, distanceScale, eyeScale, lipColor);
-      drawEyebrows(face, distanceScale, eyeScale);
-
-      pop();
-
-      // Process all effects using the effect manager
-      if (effectsCanvas1) {
-        let expressionData = {
-          browRaiseAmount: window.browRaiseAmount || 0,
-          mouthOpenRatio: window.mouthOpenRatio || 0,
-          mouthCurveAmount: window.mouthCurveAmount || 0
-        };
-
-        effectManager.processEffects(
-          expressionData,
-          effectsCanvas1.width / 2,
-          effectsCanvas1.height / 2,
-          effectsCanvas1
-        );
-      }
-    }
-
-    return;
-  }
-
-  // Calculate grid positions
-  // When connected, ALWAYS use 2-person layout to keep positions stable
-  let useStableLayout = connected; // Use 2-person layout if connected
-  let gridPositions = useStableLayout
-    ? calculateGridPositions(2) // Always 2-person layout when connected
-    : calculateGridPositions(allParticipants.length);
-
-  // Draw grid borders
-  drawGridBorders(useStableLayout ? 2 : allParticipants.length);
-
-  // Render each character with effects on separate canvases
-  allParticipants.forEach((participant, index) => {
-    // Use position based on participant's box assignment, not array index
-    let positionIndex = participant.boxId === 'participant-1' ? 0 : 1;
-    let pos = gridPositions[positionIndex];
-    let effectsCanvas = positionIndex === 0 ? effectsCanvas1 : effectsCanvas2;
-
-    // Draw character on main canvas FIRST
-    push();
-    // Move to grid cell center
-    translate(pos.x, pos.y);
-
-    // Scale down
-    scale(pos.scale);
-
-    // Center the character in this grid cell by offsetting by face center
-    // Works for BOTH local and remote characters (they all have faceCenterX/Y)
-    if (participant.data && participant.data.faceCenterX !== undefined) {
-      translate(-participant.data.faceCenterX, -participant.data.faceCenterY);
-    }
-
-    // Render this character (this sets window.browRaiseAmount for local participant)
-    // Only pass the face object to LOCAL participant
+    // Get the full face object if this is the local participant
     let faceObj = (participant.isLocal && faces.length > 0) ? faces[0] : null;
-    renderCharacter(participant.data, participant.isLocal, faceObj, participant.isHost);
 
-    // Optional: Show participant ID for debugging
-    if (CONFIG.debug.showParticipantIds) {
-      fill(255, 255, 0);
-      noStroke();
-      textSize(12);
-      textAlign(CENTER, TOP);
-      text(participant.isLocal ? 'YOU' : participant.id.slice(0, 6), 0, -200);
-    }
+    // Render character (this sets window.browRaiseAmount/mouthOpenRatio for local participant)
+    renderCharacterOnCanvas(characterCanvas, faceData, participant.isLocal, faceObj, participant.isHost, connected);
 
-    pop();
+    characterCanvas.pop();
 
-    // Process all effects using the effect manager
-    if (effectsCanvas && participant.data) {
-      // Build expression data from local or remote participant
-      let expressionData = {
-        browRaiseAmount: participant.isLocal ? (window.browRaiseAmount || 0) : (participant.data.browRaiseAmount || 0),
-        mouthOpenRatio: participant.isLocal ? (window.mouthOpenRatio || 0) : (participant.data.mouthOpenRatio || 0),
-        mouthCurveAmount: participant.isLocal ? (window.mouthCurveAmount || 0) : (participant.data.mouthCurveAmount || 0)
-      };
+    // Process effects
+    let expressionData = {
+      browRaiseAmount: participant.isLocal ? (window.browRaiseAmount || 0) : (faceData.browRaiseAmount || 0),
+      mouthOpenRatio: participant.isLocal ? (window.mouthOpenRatio || 0) : (faceData.mouthOpenRatio || 0),
+      mouthCurveAmount: participant.isLocal ? (window.mouthCurveAmount || 0) : (faceData.mouthCurveAmount || 0)
+    };
 
-      effectManager.processEffects(
-        expressionData,
-        effectsCanvas.width / 2,
-        effectsCanvas.height / 2,
-        effectsCanvas
-      );
-    }
+    effectManager.processEffects(
+      expressionData,
+      effectsCanvas.width / 2,
+      effectsCanvas.height / 2,
+      effectsCanvas
+    );
   });
 
   } catch (error) {
@@ -332,7 +258,62 @@ function draw() {
 }
 
 /**
- * Render a single character from face data
+ * Render a character on a specific canvas
+ * @param {object} canvas - p5.Graphics canvas to draw on
+ * @param {object} faceData - Face data (local or remote)
+ * @param {boolean} isLocal - Whether this is the local user
+ * @param {object} face - Full face object (only for local)
+ * @param {boolean} isHost - Whether this character is the host
+ * @param {boolean} connected - Whether user is connected to peer
+ */
+function renderCharacterOnCanvas(canvas, faceData, isLocal, face, isHost, connected) {
+  if (!faceData) return;
+
+  // Define colors based on role
+  let lipColor = isHost ? [210, 45, 45] : [101, 43, 178]; // Red for host, purple for guest
+
+  if (isLocal && face) {
+    // Local character - use full face object
+    let distanceScale = faceData.distanceScale;
+    let eyeScale = faceData.eyeScale;
+
+    // Draw debug keypoints (only when explicitly enabled AND not connected)
+    if (CONFIG.debug.showKeypoints && !connected) {
+      drawFaceKeypointsOnCanvas(canvas, face);
+    }
+
+    // Draw components on the canvas
+    drawEyesOnCanvas(canvas, face, distanceScale);
+    drawLipsOnCanvas(canvas, face, distanceScale, eyeScale, lipColor);
+    drawEyebrowsOnCanvas(canvas, face, distanceScale, eyeScale);
+
+  } else {
+    // Remote character - reconstruct from transmitted essential keypoints
+    if (!faceData.keypoints) {
+      canvas.push();
+      canvas.fill(150);
+      canvas.noStroke();
+      canvas.textSize(16);
+      canvas.textAlign(CENTER, CENTER);
+      canvas.text('Remote\nCharacter', 0, 0);
+      canvas.pop();
+      return;
+    }
+
+    // Reconstruct a "fake face object" with the essential keypoints
+    let remoteFace = reconstructFaceFromKeypoints(faceData.keypoints);
+    let distanceScale = faceData.distanceScale || 1;
+    let eyeScale = faceData.eyeScale || 1;
+
+    // Draw components on the canvas
+    drawEyesOnCanvas(canvas, remoteFace, distanceScale);
+    drawLipsOnCanvas(canvas, remoteFace, distanceScale, eyeScale, lipColor);
+    drawEyebrowsOnCanvas(canvas, remoteFace, distanceScale, eyeScale);
+  }
+}
+
+/**
+ * DEPRECATED: Old function for rendering on main canvas
  * @param {object} faceData - Face data (local or remote)
  * @param {boolean} isLocal - Whether this is the local user
  * @param {object} face - Full face object (only for local)
@@ -460,32 +441,7 @@ function reconstructFaceFromKeypoints(kp) {
  * Draw grid borders to visually separate participants
  * @param {number} count - Number of participants
  */
-function drawGridBorders(count) {
-  if (count === 2) {
-    // Vertical line in the middle for 2 people
-    stroke(255);
-    strokeWeight(4);
-    line(width/2, 0, width/2, height);
-  }
-}
-
-/**
- * Calculate grid positions for 1-2 participants
- * @param {number} count - Number of participants
- * @returns {array} Array of {x, y, scale} positions
- */
-function calculateGridPositions(count) {
-  if (count === 1) {
-    // Single person - centered, full size
-    return [{x: width/2, y: height/2, scale: 1}];
-  }
-
-  // Two people - side by side
-  return [
-    {x: width * 0.25, y: height/2, scale: 0.9},
-    {x: width * 0.75, y: height/2, scale: 0.9}
-  ];
-}
+// Grid functions removed - now using per-participant canvases
 
 function gotFaces(results) {
   faces = results;
@@ -517,6 +473,177 @@ function drawFaceKeypoints(face) {
       textSize(10);
       textAlign(CENTER, CENTER);
       text(j, keypoint.x, keypoint.y - 10);
+    }
+  }
+}
+
+// === CANVAS WRAPPER FUNCTIONS ===
+// These allow component functions to draw on specific canvases
+// We override the global p5 drawing functions temporarily
+
+function drawEyesOnCanvas(canvas, face, distanceScale) {
+  // Store original p5 functions
+  let _fill = window.fill;
+  let _stroke = window.stroke;
+  let _strokeWeight = window.strokeWeight;
+  let _noStroke = window.noStroke;
+  let _noFill = window.noFill;
+  let _circle = window.circle;
+  let _ellipse = window.ellipse;
+  let _push = window.push;
+  let _pop = window.pop;
+  let _translate = window.translate;
+  let _rotate = window.rotate;
+  let _beginShape = window.beginShape;
+  let _endShape = window.endShape;
+  let _vertex = window.vertex;
+  let _bezierVertex = window.bezierVertex;
+  let _curveVertex = window.curveVertex;
+
+  // Override with canvas methods
+  window.fill = canvas.fill.bind(canvas);
+  window.stroke = canvas.stroke.bind(canvas);
+  window.strokeWeight = canvas.strokeWeight.bind(canvas);
+  window.noStroke = canvas.noStroke.bind(canvas);
+  window.noFill = canvas.noFill.bind(canvas);
+  window.circle = canvas.circle.bind(canvas);
+  window.ellipse = canvas.ellipse.bind(canvas);
+  window.push = canvas.push.bind(canvas);
+  window.pop = canvas.pop.bind(canvas);
+  window.translate = canvas.translate.bind(canvas);
+  window.rotate = canvas.rotate.bind(canvas);
+  window.beginShape = canvas.beginShape.bind(canvas);
+  window.endShape = canvas.endShape.bind(canvas);
+  window.vertex = canvas.vertex.bind(canvas);
+  window.bezierVertex = canvas.bezierVertex.bind(canvas);
+  window.curveVertex = canvas.curveVertex.bind(canvas);
+
+  // Call the function
+  let result = drawEyes(face, distanceScale);
+
+  // Restore original functions
+  window.fill = _fill;
+  window.stroke = _stroke;
+  window.strokeWeight = _strokeWeight;
+  window.noStroke = _noStroke;
+  window.noFill = _noFill;
+  window.circle = _circle;
+  window.ellipse = _ellipse;
+  window.push = _push;
+  window.pop = _pop;
+  window.translate = _translate;
+  window.rotate = _rotate;
+  window.beginShape = _beginShape;
+  window.endShape = _endShape;
+  window.vertex = _vertex;
+  window.bezierVertex = _bezierVertex;
+  window.curveVertex = _curveVertex;
+
+  return result;
+}
+
+function drawLipsOnCanvas(canvas, face, distanceScale, eyeScale, lipColor) {
+  let _fill = window.fill;
+  let _stroke = window.stroke;
+  let _strokeWeight = window.strokeWeight;
+  let _noStroke = window.noStroke;
+  let _noFill = window.noFill;
+  let _push = window.push;
+  let _pop = window.pop;
+  let _translate = window.translate;
+  let _beginShape = window.beginShape;
+  let _endShape = window.endShape;
+  let _vertex = window.vertex;
+  let _bezierVertex = window.bezierVertex;
+  let _curveVertex = window.curveVertex;
+
+  window.fill = canvas.fill.bind(canvas);
+  window.stroke = canvas.stroke.bind(canvas);
+  window.strokeWeight = canvas.strokeWeight.bind(canvas);
+  window.noStroke = canvas.noStroke.bind(canvas);
+  window.noFill = canvas.noFill.bind(canvas);
+  window.push = canvas.push.bind(canvas);
+  window.pop = canvas.pop.bind(canvas);
+  window.translate = canvas.translate.bind(canvas);
+  window.beginShape = canvas.beginShape.bind(canvas);
+  window.endShape = canvas.endShape.bind(canvas);
+  window.vertex = canvas.vertex.bind(canvas);
+  window.bezierVertex = canvas.bezierVertex.bind(canvas);
+  window.curveVertex = canvas.curveVertex.bind(canvas);
+
+  let result = drawLips(face, distanceScale, eyeScale, lipColor);
+
+  window.fill = _fill;
+  window.stroke = _stroke;
+  window.strokeWeight = _strokeWeight;
+  window.noStroke = _noStroke;
+  window.noFill = _noFill;
+  window.push = _push;
+  window.pop = _pop;
+  window.translate = _translate;
+  window.beginShape = _beginShape;
+  window.endShape = _endShape;
+  window.vertex = _vertex;
+  window.bezierVertex = _bezierVertex;
+  window.curveVertex = _curveVertex;
+
+  return result;
+}
+
+function drawEyebrowsOnCanvas(canvas, face, distanceScale, eyeScale) {
+  let _stroke = window.stroke;
+  let _strokeWeight = window.strokeWeight;
+  let _noFill = window.noFill;
+  let _push = window.push;
+  let _pop = window.pop;
+  let _translate = window.translate;
+  let _rotate = window.rotate;
+  let _beginShape = window.beginShape;
+  let _endShape = window.endShape;
+  let _vertex = window.vertex;
+  let _curveVertex = window.curveVertex;
+
+  window.stroke = canvas.stroke.bind(canvas);
+  window.strokeWeight = canvas.strokeWeight.bind(canvas);
+  window.noFill = canvas.noFill.bind(canvas);
+  window.push = canvas.push.bind(canvas);
+  window.pop = canvas.pop.bind(canvas);
+  window.translate = canvas.translate.bind(canvas);
+  window.rotate = canvas.rotate.bind(canvas);
+  window.beginShape = canvas.beginShape.bind(canvas);
+  window.endShape = canvas.endShape.bind(canvas);
+  window.vertex = canvas.vertex.bind(canvas);
+  window.curveVertex = canvas.curveVertex.bind(canvas);
+
+  let result = drawEyebrows(face, distanceScale, eyeScale);
+
+  window.stroke = _stroke;
+  window.strokeWeight = _strokeWeight;
+  window.noFill = _noFill;
+  window.push = _push;
+  window.pop = _pop;
+  window.translate = _translate;
+  window.rotate = _rotate;
+  window.beginShape = _beginShape;
+  window.endShape = _endShape;
+  window.vertex = _vertex;
+  window.curveVertex = _curveVertex;
+
+  return result;
+}
+
+function drawFaceKeypointsOnCanvas(canvas, face) {
+  for (let j = 0; j < face.keypoints.length; j++) {
+    let keypoint = face.keypoints[j];
+    canvas.fill(0, 255, 0);
+    canvas.noStroke();
+    canvas.circle(keypoint.x, keypoint.y, 5);
+
+    if (CONFIG.debug.showIndices) {
+      canvas.fill(255, 255, 0);
+      canvas.textSize(10);
+      canvas.textAlign(CENTER, CENTER);
+      canvas.text(j, keypoint.x, keypoint.y - 10);
     }
   }
 }
