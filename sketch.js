@@ -240,16 +240,20 @@ function draw() {
 
       pop();
 
-      // NOW check for surprise and draw speed lines on effects canvas
+      // Process all effects using the effect manager
       if (effectsCanvas1) {
-        let browRaiseAmount = window.browRaiseAmount || 0;
-        let mouthOpenRatio = window.mouthOpenRatio || 0;
-        let isSurprised = detectSurprised(browRaiseAmount, mouthOpenRatio);
+        let expressionData = {
+          browRaiseAmount: window.browRaiseAmount || 0,
+          mouthOpenRatio: window.mouthOpenRatio || 0,
+          mouthCurveAmount: window.mouthCurveAmount || 0
+        };
 
-        if (isSurprised) {
-          // Draw speed lines centered in effects canvas
-          drawSpeedLines(browRaiseAmount, effectsCanvas1.width / 2, effectsCanvas1.height / 2, effectsCanvas1);
-        }
+        effectManager.processEffects(
+          expressionData,
+          effectsCanvas1.width / 2,
+          effectsCanvas1.height / 2,
+          effectsCanvas1
+        );
       }
     }
 
@@ -303,18 +307,21 @@ function draw() {
 
     pop();
 
-    // NOW draw speed lines on effects canvas (after character is drawn)
+    // Process all effects using the effect manager
     if (effectsCanvas && participant.data) {
-      // For local participant, use window globals (just calculated by drawing components)
-      // For remote participant, use transmitted data
-      let browRaiseAmount = participant.isLocal ? (window.browRaiseAmount || 0) : (participant.data.browRaiseAmount || 0);
-      let mouthOpenRatio = participant.isLocal ? (window.mouthOpenRatio || 0) : (participant.data.mouthOpenRatio || 0);
-      let isSurprised = detectSurprised(browRaiseAmount, mouthOpenRatio);
+      // Build expression data from local or remote participant
+      let expressionData = {
+        browRaiseAmount: participant.isLocal ? (window.browRaiseAmount || 0) : (participant.data.browRaiseAmount || 0),
+        mouthOpenRatio: participant.isLocal ? (window.mouthOpenRatio || 0) : (participant.data.mouthOpenRatio || 0),
+        mouthCurveAmount: participant.isLocal ? (window.mouthCurveAmount || 0) : (participant.data.mouthCurveAmount || 0)
+      };
 
-      if (isSurprised) {
-        // Draw speed lines centered in effects canvas
-        drawSpeedLines(browRaiseAmount, effectsCanvas.width / 2, effectsCanvas.height / 2, effectsCanvas);
-      }
+      effectManager.processEffects(
+        expressionData,
+        effectsCanvas.width / 2,
+        effectsCanvas.height / 2,
+        effectsCanvas
+      );
     }
   });
 

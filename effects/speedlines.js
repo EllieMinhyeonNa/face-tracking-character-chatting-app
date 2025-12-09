@@ -2,6 +2,26 @@
 // Triggered by "surprised" expression
 // NOW SUPPORTS MULTI-CANVAS! Each canvas has its own speed lines.
 
+// === EFFECT REGISTRATION ===
+// Detector function for surprise
+function detectSurprise(expressionData) {
+  const BROW_THRESHOLD = 0.15;   // 15% eyebrow raise
+  const MOUTH_THRESHOLD = 0.15;  // 15% mouth opening
+
+  return expressionData.browRaiseAmount >= BROW_THRESHOLD &&
+         expressionData.mouthOpenRatio >= MOUTH_THRESHOLD;
+}
+
+// Register this effect with the manager (called after page loads)
+if (typeof effectManager !== 'undefined') {
+  effectManager.registerEffect(
+    'surprised',           // Effect name
+    detectSurprise,        // Detector function
+    drawSpeedLines,        // Renderer function
+    { minDuration: 200 }   // Options
+  );
+}
+
 // --- Configuration ---
 let numStars = 100; // Low density
 let baseSpeed = 70; // How fast they move normally

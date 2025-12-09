@@ -188,6 +188,7 @@ function extractFaceData(face) {
   // Expression data
   let browRaiseAmount = window.browRaiseAmount || 0;
   let mouthOpenRatio = window.mouthOpenRatio || 0;
+  let mouthCurveAmount = window.mouthCurveAmount || 0;
 
   return {
     // Essential keypoints for full-quality remote rendering
@@ -204,6 +205,7 @@ function extractFaceData(face) {
     // Expression
     browRaiseAmount: browRaiseAmount,
     mouthOpenRatio: mouthOpenRatio,
+    mouthCurveAmount: mouthCurveAmount,
 
     // Timestamp
     timestamp: Date.now()
