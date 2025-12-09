@@ -22,9 +22,13 @@ function setup() {
   // No main canvas needed - we'll use per-participant canvases
   noCanvas(); // Disable default p5 canvas
 
-  video = createCapture(VIDEO);
+  video = createCapture(VIDEO, () => {
+    console.log('📹 Camera initialized successfully');
+    console.log('   Video dimensions:', video.width, 'x', video.height);
+  });
   video.size(640, 480);
   video.hide();
+
   faceMesh.detectStart(video, gotFaces);
 
   // Initialize networking
@@ -135,12 +139,27 @@ function draw() {
       myFaceData = extractFaceData(face);
 
       // Send to peer
+      if (frameCount % 60 === 0) {
+        console.log('📤 Sending face data to peer');
+      }
       sendFaceData(myFaceData);
+    } else {
+      // No face detected - send null to clear remote character
+      sendFaceData(null);
     }
 
   // === RENDER ALL CHARACTERS (me + remote peer) ===
   // ALWAYS: Host on left (participant-1), Guest on right (participant-2)
   let allParticipants = [];
+
+  // Debug: Check remote data availability (every 60 frames)
+  let remoteFaceDataDebug = getRemoteFaceData();
+  if (frameCount % 60 === 0) {
+    console.log('🔍 Remote data check:', remoteFaceDataDebug ? 'RECEIVED' : 'NONE');
+    if (remoteFaceDataDebug) {
+      console.log('   Remote has', remoteFaceDataDebug.browRaiseAmount ? 'expression data' : 'NO expression data');
+    }
+  }
 
   // Determine roles: if I'm the host, I go first. If I'm a guest, remote goes first.
   let amIHost = isHostRole(); // Check if current device is the host
@@ -198,6 +217,12 @@ function draw() {
     updateConnectionUI(connected);
   }
 
+  // Debug: Log participants array
+  if (frameCount % 60 === 0) {
+    console.log('👥 Participants:', allParticipants.length,
+      allParticipants.map(p => `${p.id}(${p.boxId})`).join(', '));
+  }
+
   // Ensure canvases exist (must run AFTER updateConnectionUI shows participant-2)
   // Use setTimeout to let the DOM update first
   if (connected && (!characterCanvas2 || !effectsCanvas2)) {
@@ -208,13 +233,14 @@ function draw() {
     setupCanvases();
   }
 
-  // Render each participant on their own canvas
-  allParticipants.forEach((participant) => {
-    // Get the character and effects canvas for this participant
-    let characterCanvas = participant.boxId === 'participant-1' ? characterCanvas1 : characterCanvas2;
-    let effectsCanvas = participant.boxId === 'participant-1' ? effectsCanvas1 : effectsCanvas2;
+  // === FIRST PASS: Render all characters and capture expression data ===
+  let participantExpressions = new Map(); // Store each participant's expression separately
 
-    if (!characterCanvas || !effectsCanvas) return;
+  allParticipants.forEach((participant) => {
+    // Get the character canvas for this participant
+    let characterCanvas = participant.boxId === 'participant-1' ? characterCanvas1 : characterCanvas2;
+
+    if (!characterCanvas) return;
 
     let faceData = participant.data;
     if (!faceData) return;
@@ -236,13 +262,64 @@ function draw() {
 
     characterCanvas.pop();
 
-    // Process effects
-    let expressionData = {
-      browRaiseAmount: participant.isLocal ? (window.browRaiseAmount || 0) : (faceData.browRaiseAmount || 0),
-      mouthOpenRatio: participant.isLocal ? (window.mouthOpenRatio || 0) : (faceData.mouthOpenRatio || 0),
-      mouthCurveAmount: participant.isLocal ? (window.mouthCurveAmount || 0) : (faceData.mouthCurveAmount || 0)
-    };
+    // IMMEDIATELY capture expression data after rendering THIS participant
+    if (participant.isLocal) {
+      // Local participant - use window values set by drawing functions
+      let localExpression = {
+        browRaiseAmount: window.browRaiseAmount || 0,
+        mouthOpenRatio: window.mouthOpenRatio || 0,
+        mouthCurveAmount: window.mouthCurveAmount || 0
+      };
+      participantExpressions.set(participant.boxId, localExpression);
 
+      // Debug: Log local expression (every 60 frames)
+      if (frameCount % 60 === 0) {
+        console.log(`📊 Local ${participant.id} (${participant.boxId}) expression:`, {
+          brow: localExpression.browRaiseAmount.toFixed(3),
+          mouth: localExpression.mouthOpenRatio.toFixed(3),
+          curve: localExpression.mouthCurveAmount.toFixed(3)
+        });
+      }
+    } else {
+      // Remote participant - use transmitted data
+      let remoteExpression = {
+        browRaiseAmount: faceData.browRaiseAmount || 0,
+        mouthOpenRatio: faceData.mouthOpenRatio || 0,
+        mouthCurveAmount: faceData.mouthCurveAmount || 0
+      };
+      participantExpressions.set(participant.boxId, remoteExpression);
+
+      // Debug: Log remote expression (every 60 frames)
+      if (frameCount % 60 === 0) {
+        console.log(`📊 Remote ${participant.id} (${participant.boxId}) expression:`, {
+          brow: remoteExpression.browRaiseAmount.toFixed(3),
+          mouth: remoteExpression.mouthOpenRatio.toFixed(3),
+          curve: remoteExpression.mouthCurveAmount.toFixed(3)
+        });
+      }
+    }
+  });
+
+  // === SECOND PASS: Apply effects using captured expression data ===
+  allParticipants.forEach((participant) => {
+    let effectsCanvas = participant.boxId === 'participant-1' ? effectsCanvas1 : effectsCanvas2;
+
+    if (!effectsCanvas) return;
+    if (!participant.data) return;
+
+    // Get the stored expression data for THIS participant
+    let expressionData = participantExpressions.get(participant.boxId);
+    if (!expressionData) return;
+
+    // Debug: Log which canvas we're processing effects for
+    if (frameCount % 60 === 0) {
+      console.log(`🎨 Processing effects for ${participant.id} on ${participant.boxId}`, {
+        brow: expressionData.browRaiseAmount.toFixed(3),
+        mouth: expressionData.mouthOpenRatio.toFixed(3)
+      });
+    }
+
+    // Apply effects for this participant
     effectManager.processEffects(
       expressionData,
       effectsCanvas.width / 2,
@@ -446,9 +523,12 @@ function reconstructFaceFromKeypoints(kp) {
 function gotFaces(results) {
   faces = results;
 
-  // Debug: Log face detection
+  // Debug: Log face detection with more details
   if (frameCount % 60 === 0) { // Log every 60 frames (once per second)
     console.log('Face detection:', faces.length, 'faces detected');
+    if (faces.length > 0) {
+      console.log('   First face has', faces[0].keypoints.length, 'keypoints');
+    }
   }
 }
 
@@ -479,28 +559,30 @@ function drawFaceKeypoints(face) {
 
 // === CANVAS WRAPPER FUNCTIONS ===
 // These allow component functions to draw on specific canvases
-// We override the global p5 drawing functions temporarily
+// We temporarily redirect p5 drawing functions to the canvas
 
-function drawEyesOnCanvas(canvas, face, distanceScale) {
-  // Store original p5 functions
-  let _fill = window.fill;
-  let _stroke = window.stroke;
-  let _strokeWeight = window.strokeWeight;
-  let _noStroke = window.noStroke;
-  let _noFill = window.noFill;
-  let _circle = window.circle;
-  let _ellipse = window.ellipse;
-  let _push = window.push;
-  let _pop = window.pop;
-  let _translate = window.translate;
-  let _rotate = window.rotate;
-  let _beginShape = window.beginShape;
-  let _endShape = window.endShape;
-  let _vertex = window.vertex;
-  let _bezierVertex = window.bezierVertex;
-  let _curveVertex = window.curveVertex;
+function withCanvasContext(canvas, fn) {
+  // Store original p5 drawing functions
+  let originals = {
+    fill: window.fill,
+    stroke: window.stroke,
+    strokeWeight: window.strokeWeight,
+    noStroke: window.noStroke,
+    noFill: window.noFill,
+    circle: window.circle,
+    ellipse: window.ellipse,
+    push: window.push,
+    pop: window.pop,
+    translate: window.translate,
+    rotate: window.rotate,
+    beginShape: window.beginShape,
+    endShape: window.endShape,
+    vertex: window.vertex,
+    bezierVertex: window.bezierVertex,
+    curveVertex: window.curveVertex
+  };
 
-  // Override with canvas methods
+  // Override with canvas methods (bind to canvas context)
   window.fill = canvas.fill.bind(canvas);
   window.stroke = canvas.stroke.bind(canvas);
   window.strokeWeight = canvas.strokeWeight.bind(canvas);
@@ -519,117 +601,39 @@ function drawEyesOnCanvas(canvas, face, distanceScale) {
   window.curveVertex = canvas.curveVertex.bind(canvas);
 
   // Call the function
-  let result = drawEyes(face, distanceScale);
+  let result = fn();
 
   // Restore original functions
-  window.fill = _fill;
-  window.stroke = _stroke;
-  window.strokeWeight = _strokeWeight;
-  window.noStroke = _noStroke;
-  window.noFill = _noFill;
-  window.circle = _circle;
-  window.ellipse = _ellipse;
-  window.push = _push;
-  window.pop = _pop;
-  window.translate = _translate;
-  window.rotate = _rotate;
-  window.beginShape = _beginShape;
-  window.endShape = _endShape;
-  window.vertex = _vertex;
-  window.bezierVertex = _bezierVertex;
-  window.curveVertex = _curveVertex;
+  window.fill = originals.fill;
+  window.stroke = originals.stroke;
+  window.strokeWeight = originals.strokeWeight;
+  window.noStroke = originals.noStroke;
+  window.noFill = originals.noFill;
+  window.circle = originals.circle;
+  window.ellipse = originals.ellipse;
+  window.push = originals.push;
+  window.pop = originals.pop;
+  window.translate = originals.translate;
+  window.rotate = originals.rotate;
+  window.beginShape = originals.beginShape;
+  window.endShape = originals.endShape;
+  window.vertex = originals.vertex;
+  window.bezierVertex = originals.bezierVertex;
+  window.curveVertex = originals.curveVertex;
 
   return result;
+}
+
+function drawEyesOnCanvas(canvas, face, distanceScale) {
+  return withCanvasContext(canvas, () => drawEyes(face, distanceScale));
 }
 
 function drawLipsOnCanvas(canvas, face, distanceScale, eyeScale, lipColor) {
-  let _fill = window.fill;
-  let _stroke = window.stroke;
-  let _strokeWeight = window.strokeWeight;
-  let _noStroke = window.noStroke;
-  let _noFill = window.noFill;
-  let _push = window.push;
-  let _pop = window.pop;
-  let _translate = window.translate;
-  let _beginShape = window.beginShape;
-  let _endShape = window.endShape;
-  let _vertex = window.vertex;
-  let _bezierVertex = window.bezierVertex;
-  let _curveVertex = window.curveVertex;
-
-  window.fill = canvas.fill.bind(canvas);
-  window.stroke = canvas.stroke.bind(canvas);
-  window.strokeWeight = canvas.strokeWeight.bind(canvas);
-  window.noStroke = canvas.noStroke.bind(canvas);
-  window.noFill = canvas.noFill.bind(canvas);
-  window.push = canvas.push.bind(canvas);
-  window.pop = canvas.pop.bind(canvas);
-  window.translate = canvas.translate.bind(canvas);
-  window.beginShape = canvas.beginShape.bind(canvas);
-  window.endShape = canvas.endShape.bind(canvas);
-  window.vertex = canvas.vertex.bind(canvas);
-  window.bezierVertex = canvas.bezierVertex.bind(canvas);
-  window.curveVertex = canvas.curveVertex.bind(canvas);
-
-  let result = drawLips(face, distanceScale, eyeScale, lipColor);
-
-  window.fill = _fill;
-  window.stroke = _stroke;
-  window.strokeWeight = _strokeWeight;
-  window.noStroke = _noStroke;
-  window.noFill = _noFill;
-  window.push = _push;
-  window.pop = _pop;
-  window.translate = _translate;
-  window.beginShape = _beginShape;
-  window.endShape = _endShape;
-  window.vertex = _vertex;
-  window.bezierVertex = _bezierVertex;
-  window.curveVertex = _curveVertex;
-
-  return result;
+  return withCanvasContext(canvas, () => drawLips(face, distanceScale, eyeScale, lipColor));
 }
 
 function drawEyebrowsOnCanvas(canvas, face, distanceScale, eyeScale) {
-  let _stroke = window.stroke;
-  let _strokeWeight = window.strokeWeight;
-  let _noFill = window.noFill;
-  let _push = window.push;
-  let _pop = window.pop;
-  let _translate = window.translate;
-  let _rotate = window.rotate;
-  let _beginShape = window.beginShape;
-  let _endShape = window.endShape;
-  let _vertex = window.vertex;
-  let _curveVertex = window.curveVertex;
-
-  window.stroke = canvas.stroke.bind(canvas);
-  window.strokeWeight = canvas.strokeWeight.bind(canvas);
-  window.noFill = canvas.noFill.bind(canvas);
-  window.push = canvas.push.bind(canvas);
-  window.pop = canvas.pop.bind(canvas);
-  window.translate = canvas.translate.bind(canvas);
-  window.rotate = canvas.rotate.bind(canvas);
-  window.beginShape = canvas.beginShape.bind(canvas);
-  window.endShape = canvas.endShape.bind(canvas);
-  window.vertex = canvas.vertex.bind(canvas);
-  window.curveVertex = canvas.curveVertex.bind(canvas);
-
-  let result = drawEyebrows(face, distanceScale, eyeScale);
-
-  window.stroke = _stroke;
-  window.strokeWeight = _strokeWeight;
-  window.noFill = _noFill;
-  window.push = _push;
-  window.pop = _pop;
-  window.translate = _translate;
-  window.rotate = _rotate;
-  window.beginShape = _beginShape;
-  window.endShape = _endShape;
-  window.vertex = _vertex;
-  window.curveVertex = _curveVertex;
-
-  return result;
+  return withCanvasContext(canvas, () => drawEyebrows(face, distanceScale, eyeScale));
 }
 
 function drawFaceKeypointsOnCanvas(canvas, face) {

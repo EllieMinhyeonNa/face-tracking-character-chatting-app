@@ -4,7 +4,7 @@
 class EffectManager {
   constructor() {
     this.effects = new Map(); // Map of effect name -> effect config
-    this.eventStates = new Map(); // Map of event name -> state
+    this.canvasStates = new Map(); // Map of canvas -> Map of effect name -> state
   }
 
   /**
@@ -28,14 +28,29 @@ class EffectManager {
       options: { ...defaultOptions, ...options }
     });
 
-    // Initialize event state for this effect
-    this.eventStates.set(name, {
-      active: false,
-      tracking: false,
-      startTime: 0
-    });
-
     console.log(`✅ Effect registered: ${name}`);
+  }
+
+  /**
+   * Get or initialize state for a specific canvas and effect
+   * @private
+   */
+  _getState(canvas, effectName) {
+    if (!this.canvasStates.has(canvas)) {
+      this.canvasStates.set(canvas, new Map());
+    }
+
+    const canvasEffectStates = this.canvasStates.get(canvas);
+
+    if (!canvasEffectStates.has(effectName)) {
+      canvasEffectStates.set(effectName, {
+        active: false,
+        tracking: false,
+        startTime: 0
+      });
+    }
+
+    return canvasEffectStates.get(effectName);
   }
 
   /**
@@ -54,7 +69,7 @@ class EffectManager {
 
     // Process each effect
     for (const effect of sortedEffects) {
-      const isTriggered = this._detectEffect(effect, expressionData);
+      const isTriggered = this._detectEffect(effect, expressionData, canvas);
 
       if (isTriggered) {
         // Calculate intensity (0 to 1) based on expression strength
@@ -70,8 +85,8 @@ class EffectManager {
    * Detect if an effect should trigger
    * @private
    */
-  _detectEffect(effect, expressionData) {
-    const state = this.eventStates.get(effect.name);
+  _detectEffect(effect, expressionData, canvas) {
+    const state = this._getState(canvas, effect.name);
 
     // Run the detector function
     const detected = effect.detector(expressionData);
@@ -119,11 +134,14 @@ class EffectManager {
   /**
    * Get state of all effects (for debugging)
    */
-  getStates() {
+  getStates(canvas) {
     const states = {};
-    this.eventStates.forEach((state, name) => {
-      states[name] = { ...state };
-    });
+    if (canvas && this.canvasStates.has(canvas)) {
+      const canvasEffectStates = this.canvasStates.get(canvas);
+      canvasEffectStates.forEach((state, name) => {
+        states[name] = { ...state };
+      });
+    }
     return states;
   }
 

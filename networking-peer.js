@@ -93,7 +93,12 @@ function setupConnection() {
     if (frameCount % 60 === 0) {
       console.log('📥 Receiving data from peer (logging every 60 frames)');
     }
-    remoteFaceData = data;
+    // Stamp with local receive time to avoid clock sync issues
+    if (data) {
+      remoteFaceData = { ...data, receivedAt: Date.now() };
+    } else {
+      remoteFaceData = data; // null means no face detected
+    }
   });
 
   connection.on('close', () => {
@@ -223,8 +228,21 @@ function sendFaceData(faceData) {
 
 /**
  * Get remote participant's face data
+ * Returns null if data is too old (>500ms since received)
  */
 function getRemoteFaceData() {
+  if (!remoteFaceData) return null;
+
+  // Check if data is stale using receivedAt (local receive time)
+  // This avoids clock synchronization issues between devices
+  const MAX_AGE_MS = 500;
+  const age = Date.now() - remoteFaceData.receivedAt;
+
+  if (age > MAX_AGE_MS) {
+    // Data is too old, probably no face detected on remote side
+    return null;
+  }
+
   return remoteFaceData;
 }
 
