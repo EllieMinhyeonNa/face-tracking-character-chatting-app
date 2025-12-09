@@ -1,6 +1,8 @@
 // Lips component - handles lip tracking and rendering
 
-function drawLips(face, distanceScale = 1, eyeScale = 1) {
+function drawLips(face, distanceScale = 1, eyeScale = 1, lipColor = null) {
+  // Use provided color or default from CONFIG
+  let color = lipColor || CONFIG.lips.color;
   // Apply min/max scale limits
   let strokeScale = constrain(distanceScale, CONFIG.lips.minScale, CONFIG.lips.maxScale);
 
@@ -58,7 +60,7 @@ function drawLips(face, distanceScale = 1, eyeScale = 1) {
 
   // Draw based on mouth state
   noFill();
-  stroke(...CONFIG.lips.color);
+  stroke(...color); // Use the color parameter
   strokeWeight(CONFIG.lips.strokeWeight * CONFIG.lips.exaggerationFactor * strokeScale);
   strokeCap(ROUND);
 
