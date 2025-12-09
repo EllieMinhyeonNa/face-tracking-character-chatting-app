@@ -76,7 +76,7 @@ class EffectManager {
         const intensity = this._calculateIntensity(effect, expressionData);
 
         // Render the effect
-        effect.renderer(intensity, centerX, centerY, canvas);
+        effect.renderer(intensity, centerX, centerY, canvas, expressionData);
       }
     }
   }

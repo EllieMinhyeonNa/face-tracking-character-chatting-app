@@ -14,6 +14,9 @@ let characterCanvas2 = null;
 let effectsCanvas1 = null;
 let effectsCanvas2 = null;
 
+// Debug overlays per participant (DOM elements)
+let debugOverlays = new Map();
+
 function preload() {
   faceMesh = ml5.faceMesh(options);
 }
@@ -264,11 +267,14 @@ function draw() {
 
     // IMMEDIATELY capture expression data after rendering THIS participant
     if (participant.isLocal) {
-      // Local participant - use window values set by drawing functions
+      // Local participant - use the transmitted face data we already calculated
+      // This ensures we get the correct values that were calculated in extractFaceData()
       let localExpression = {
-        browRaiseAmount: window.browRaiseAmount || 0,
-        mouthOpenRatio: window.mouthOpenRatio || 0,
-        mouthCurveAmount: window.mouthCurveAmount || 0
+        browRaiseAmount: faceData.browRaiseAmount || 0,
+        mouthOpenRatio: faceData.mouthOpenRatio || 0,
+        mouthCurveAmount: faceData.mouthCurveAmount || 0,
+        leftEyeOpenRatio: faceData.leftEyeOpenRatio || 1,
+        rightEyeOpenRatio: faceData.rightEyeOpenRatio || 1
       };
       participantExpressions.set(participant.boxId, localExpression);
 
@@ -277,7 +283,9 @@ function draw() {
         console.log(`📊 Local ${participant.id} (${participant.boxId}) expression:`, {
           brow: localExpression.browRaiseAmount.toFixed(3),
           mouth: localExpression.mouthOpenRatio.toFixed(3),
-          curve: localExpression.mouthCurveAmount.toFixed(3)
+          curve: localExpression.mouthCurveAmount.toFixed(3),
+          eyeL: localExpression.leftEyeOpenRatio.toFixed(3),
+          eyeR: localExpression.rightEyeOpenRatio.toFixed(3)
         });
       }
     } else {
@@ -285,7 +293,9 @@ function draw() {
       let remoteExpression = {
         browRaiseAmount: faceData.browRaiseAmount || 0,
         mouthOpenRatio: faceData.mouthOpenRatio || 0,
-        mouthCurveAmount: faceData.mouthCurveAmount || 0
+        mouthCurveAmount: faceData.mouthCurveAmount || 0,
+        leftEyeOpenRatio: faceData.leftEyeOpenRatio || 1,
+        rightEyeOpenRatio: faceData.rightEyeOpenRatio || 1
       };
       participantExpressions.set(participant.boxId, remoteExpression);
 
@@ -294,7 +304,9 @@ function draw() {
         console.log(`📊 Remote ${participant.id} (${participant.boxId}) expression:`, {
           brow: remoteExpression.browRaiseAmount.toFixed(3),
           mouth: remoteExpression.mouthOpenRatio.toFixed(3),
-          curve: remoteExpression.mouthCurveAmount.toFixed(3)
+          curve: remoteExpression.mouthCurveAmount.toFixed(3),
+          eyeL: remoteExpression.leftEyeOpenRatio.toFixed(3),
+          eyeR: remoteExpression.rightEyeOpenRatio.toFixed(3)
         });
       }
     }
@@ -328,10 +340,72 @@ function draw() {
     );
   });
 
+  // === DEBUG OVERLAY: Show expression values under labels ===
+  updateDebugOverlays(allParticipants, participantExpressions);
+
   } catch (error) {
     console.error('❌ Draw error:', error);
     // Don't crash - just log the error and continue
   }
+}
+
+/**
+ * Create or update small debug panels under host/guest tags
+ */
+function updateDebugOverlays(participants, expressions) {
+  // Build a quick lookup of participants by box
+  let byBox = new Map();
+  participants.forEach(p => byBox.set(p.boxId, p));
+
+  ['participant-1', 'participant-2'].forEach((boxId) => {
+    let overlay = getOrCreateDebugOverlay(boxId);
+    if (!overlay) return;
+
+    let expr = expressions.get(boxId);
+    let participant = byBox.get(boxId);
+
+    if (!participant || !expr) {
+      overlay.textContent = 'no data';
+      overlay.style.opacity = '0.5';
+      return;
+    }
+
+    overlay.style.opacity = '1';
+    overlay.textContent = [
+      `brow: ${expr.browRaiseAmount.toFixed(2)}`,
+      `mouth: ${expr.mouthOpenRatio.toFixed(2)}`,
+      `curve: ${expr.mouthCurveAmount.toFixed(2)}`,
+      `eyeL: ${expr.leftEyeOpenRatio.toFixed(2)}`,
+      `eyeR: ${expr.rightEyeOpenRatio.toFixed(2)}`
+    ].join('  |  ');
+  });
+}
+
+function getOrCreateDebugOverlay(boxId) {
+  if (debugOverlays.has(boxId)) return debugOverlays.get(boxId);
+
+  let box = document.getElementById(boxId);
+  if (!box) return null;
+
+  let overlay = document.createElement('div');
+  overlay.className = 'debug-overlay';
+  overlay.style.position = 'absolute';
+  overlay.style.top = '52px'; // under the host/guest pill
+  overlay.style.left = '16px';
+  overlay.style.right = '16px';
+  overlay.style.padding = '8px 10px';
+  overlay.style.background = 'rgba(0,0,0,0.35)';
+  overlay.style.color = '#fff';
+  overlay.style.fontSize = '12px';
+  overlay.style.fontFamily = "SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace";
+  overlay.style.borderRadius = '10px';
+  overlay.style.backdropFilter = 'blur(4px)';
+  overlay.style.pointerEvents = 'none';
+  overlay.style.zIndex = '9';
+
+  box.appendChild(overlay);
+  debugOverlays.set(boxId, overlay);
+  return overlay;
 }
 
 /**

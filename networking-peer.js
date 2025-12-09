@@ -195,6 +195,27 @@ function extractFaceData(face) {
   let mouthOpenRatio = window.mouthOpenRatio || 0;
   let mouthCurveAmount = window.mouthCurveAmount || 0;
 
+  // Calculate eye open ratios directly from keypoints (don't rely on window variables)
+  let leftEyeTop = face.keypoints[KEYPOINTS.LEFT_EYE_TOP];
+  let leftEyeBottom = face.keypoints[KEYPOINTS.LEFT_EYE_BOTTOM];
+  let leftEyeLeftCorner = face.keypoints[KEYPOINTS.LEFT_EYE_LEFT_CORNER];
+  let leftEyeRightCorner = face.keypoints[KEYPOINTS.LEFT_EYE_RIGHT_CORNER];
+
+  let rightEyeTop = face.keypoints[KEYPOINTS.RIGHT_EYE_TOP];
+  let rightEyeBottom = face.keypoints[KEYPOINTS.RIGHT_EYE_BOTTOM];
+  let rightEyeLeftCorner = face.keypoints[KEYPOINTS.RIGHT_EYE_LEFT_CORNER];
+  let rightEyeRightCorner = face.keypoints[KEYPOINTS.RIGHT_EYE_RIGHT_CORNER];
+
+  let leftRealHeight = dist(leftEyeTop.x, leftEyeTop.y, leftEyeBottom.x, leftEyeBottom.y);
+  let leftRealWidth = dist(leftEyeLeftCorner.x, leftEyeLeftCorner.y, leftEyeRightCorner.x, leftEyeRightCorner.y);
+  let leftMaxHeight = leftRealWidth * 0.5;
+  let leftEyeOpenRatio = constrain(leftRealHeight / leftMaxHeight, 0, 1);
+
+  let rightRealHeight = dist(rightEyeTop.x, rightEyeTop.y, rightEyeBottom.x, rightEyeBottom.y);
+  let rightRealWidth = dist(rightEyeLeftCorner.x, rightEyeLeftCorner.y, rightEyeRightCorner.x, rightEyeRightCorner.y);
+  let rightMaxHeight = rightRealWidth * 0.5;
+  let rightEyeOpenRatio = constrain(rightRealHeight / rightMaxHeight, 0, 1);
+
   return {
     // Essential keypoints for full-quality remote rendering
     keypoints: essentialKeypoints,
@@ -211,6 +232,8 @@ function extractFaceData(face) {
     browRaiseAmount: browRaiseAmount,
     mouthOpenRatio: mouthOpenRatio,
     mouthCurveAmount: mouthCurveAmount,
+    leftEyeOpenRatio: leftEyeOpenRatio,
+    rightEyeOpenRatio: rightEyeOpenRatio,
 
     // Timestamp
     timestamp: Date.now()

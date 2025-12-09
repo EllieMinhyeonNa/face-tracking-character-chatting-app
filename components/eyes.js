@@ -76,6 +76,10 @@ function drawEyes(face, distanceScale = 1) {
     rightOpenRatio = constrain(rightOpenRatio, 0, 1);
     let rightAnimatedHeight = rightExaggeratedHeight * rightOpenRatio;
 
+    // Expose eye openness so effects (e.g., wink) can use it
+    window.leftEyeOpenRatio = leftOpenRatio;
+    window.rightEyeOpenRatio = rightOpenRatio;
+
     // 왼쪽 눈 흰자 그리기
     push();
     translate(leftNewCenterX, leftNewCenterY);
@@ -85,7 +89,7 @@ function drawEyes(face, distanceScale = 1) {
     ellipse(0, 0, leftExaggeratedWidth, leftAnimatedHeight);
     pop();
 
-    // 왼쪽 동공 - 크기는 exaggeratedHeight 기준 (blinking에 영향받지 않음)
+    // 왼쪽 동공 - base size; visibility controlled by clip
     let leftPupilSize = leftExaggeratedHeight * CONFIG.eyes.pupilSizeRatio;
 
     // 동공 위치 오프셋 계산 (원래 눈 중심에서 얼마나 떨어져 있는지)
@@ -93,19 +97,25 @@ function drawEyes(face, distanceScale = 1) {
     let leftPupilOffsetY = leftPupil.y - leftOriginalCenterY;
 
     // 새로운 눈 위치에 맞게 동공 위치 조정
-    let leftNewPupilX = leftNewCenterX + leftPupilOffsetX;
-    let leftNewPupilY = leftNewCenterY + leftPupilOffsetY;
+    // Clamp pupil motion so it stays inside sclera
+    let leftClipW = leftExaggeratedWidth * 1.0;
+    let leftClipH = leftAnimatedHeight * 1.0;
+    let clampedLeftOffsetX = constrain(leftPupilOffsetX * max(0.35, leftOpenRatio), -leftClipW * 0.25, leftClipW * 0.25);
+    let clampedLeftOffsetY = constrain(leftPupilOffsetY * max(0.35, leftOpenRatio), -leftClipH * 0.25, leftClipH * 0.25);
+    let leftNewPupilX = leftNewCenterX + clampedLeftOffsetX;
+    let leftNewPupilY = leftNewCenterY + clampedLeftOffsetY;
 
     push();
     translate(leftNewCenterX, leftNewCenterY);
     rotate(faceRotationAngle);
     drawingContext.save();
     drawingContext.beginPath();
-    drawingContext.ellipse(0, 0, leftExaggeratedWidth / 2, leftAnimatedHeight / 2, 0, 0, TWO_PI);
+    // Clip to sclera (slightly inset) to hide overflow
+    drawingContext.ellipse(0, 0, leftClipW / 2, leftClipH / 2, 0, 0, TWO_PI);
     drawingContext.clip();
     fill(0, 0, 0);
     noStroke(); // Ensure no stroke on pupil
-    circle(leftPupilOffsetX, leftPupilOffsetY, leftPupilSize);
+    circle(clampedLeftOffsetX, clampedLeftOffsetY, leftPupilSize);
     drawingContext.restore();
     pop();
 
@@ -126,19 +136,25 @@ function drawEyes(face, distanceScale = 1) {
     let rightPupilOffsetY = rightPupil.y - rightOriginalCenterY;
 
     // 새로운 눈 위치에 맞게 동공 위치 조정
-    let rightNewPupilX = rightNewCenterX + rightPupilOffsetX;
-    let rightNewPupilY = rightNewCenterY + rightPupilOffsetY;
+    // Clamp pupil motion so it stays inside sclera
+    let rightClipW = rightExaggeratedWidth * 1.0;
+    let rightClipH = rightAnimatedHeight * 1.0;
+    let clampedRightOffsetX = constrain(rightPupilOffsetX * max(0.35, rightOpenRatio), -rightClipW * 0.25, rightClipW * 0.25);
+    let clampedRightOffsetY = constrain(rightPupilOffsetY * max(0.35, rightOpenRatio), -rightClipH * 0.25, rightClipH * 0.25);
+    let rightNewPupilX = rightNewCenterX + clampedRightOffsetX;
+    let rightNewPupilY = rightNewCenterY + clampedRightOffsetY;
 
     push();
     translate(rightNewCenterX, rightNewCenterY);
     rotate(faceRotationAngle);
     drawingContext.save();
     drawingContext.beginPath();
-    drawingContext.ellipse(0, 0, rightExaggeratedWidth / 2, rightAnimatedHeight / 2, 0, 0, TWO_PI);
+    // Clip to sclera (slightly inset) to hide overflow
+    drawingContext.ellipse(0, 0, rightClipW / 2, rightClipH / 2, 0, 0, TWO_PI);
     drawingContext.clip();
     fill(0, 0, 0);
     noStroke(); // Ensure no stroke on pupil
-    circle(rightPupilOffsetX, rightPupilOffsetY, rightPupilSize);
+    circle(clampedRightOffsetX, clampedRightOffsetY, rightPupilSize);
     drawingContext.restore();
     pop();
   }
