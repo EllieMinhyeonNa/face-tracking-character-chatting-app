@@ -5,7 +5,7 @@
 // === EFFECT REGISTRATION ===
 // Detector function for surprise
 function detectSurprise(expressionData) {
-  const BROW_THRESHOLD = 0.15;   // 15% eyebrow raise
+  const BROW_THRESHOLD = 0.35;   // 35% eyebrow raise
   const MOUTH_THRESHOLD = 0.15;  // 15% mouth opening
 
   return expressionData.browRaiseAmount >= BROW_THRESHOLD &&
