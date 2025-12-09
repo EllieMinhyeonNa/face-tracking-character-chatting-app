@@ -375,6 +375,7 @@ function updateDebugOverlays(participants, expressions) {
       `brow: ${expr.browRaiseAmount.toFixed(2)}`,
       `mouth: ${expr.mouthOpenRatio.toFixed(2)}`,
       `curve: ${expr.mouthCurveAmount.toFixed(2)}`,
+      `frownThr: -0.30`,
       `eyeL: ${expr.leftEyeOpenRatio.toFixed(2)}`,
       `eyeR: ${expr.rightEyeOpenRatio.toFixed(2)}`
     ].join('  |  ');
